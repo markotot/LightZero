@@ -8,7 +8,7 @@ APOCRITA_USER = acw549
 #EXPERIMENT CONFIG
 START_SEED = 1
 END_SEED = 10
-RUN_NAME = "iris-atari"
+RUN_NAME = "iris"
 
 # Used to login to apocrita server
 .SILENT: apocrita_login
@@ -49,9 +49,6 @@ apocrita_clean_runs:
  	${APOCRITA_USER} ${APOCRITA_PASSPHRASE} ${APOCRITA_USER_PASSWORD} ${AP_PRIVATE_KEY_PATH} \
  	${GIT_BRANCH} ${PROJECT_NAME}
 
-
-run_iris:
-	bash scripts/run_iris.sh
 
 #NO_DEBUG     ?=
 #NO_DOCSTRING ?=

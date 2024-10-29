@@ -7,7 +7,7 @@ set APOC_PRIVATE_KEY [lindex $argv 3];
 
 set GIT_BRANCH [lindex $argv 4];
 set PROJECT_NAME [lindex $argv 5];
-set $WANDB_API_KEY [lindex $argv 6];
+set WANDB_API_KEY [lindex $argv 6];
 
 set START_SEED [lindex $argv 7];
 set END_SEED [lindex $argv 8];
