@@ -7,7 +7,7 @@ set APOC_PRIVATE_KEY [lindex $argv 3];
 
 set GIT_BRANCH [lindex $argv 4];
 set PROJECT_NAME [lindex $argv 5];
-set WANDB_API_KEY [lidnex $argv 6];
+set WANDB_API_KEY [lindex $argv 6];
 
 set BUILD_JOB_PARAMS "-N APPTAINER-Build -v PROJECT_NAME=$PROJECT_NAME,GIT_BRANCH=$GIT_BRANCH,JOB_TYPE=\"build\" $PROJECT_NAME/scripts/submit_build_job.sh"
 
