@@ -17,4 +17,6 @@ From: nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
         git pull
     elif [ $JOB_TYPE = "run_iris" ]; then
         bash scripts/run_iris.sh
+    elif [ $JOB_TYPE = "test"]; then
+        bash scripts/run_playground.sh
     fi
