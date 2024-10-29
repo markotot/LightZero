@@ -4,6 +4,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 import torch
+from lzero.worker.iris_evaluator import IrisEvaluator
 from tensorboardX import SummaryWriter
 
 from ding.config import compile_config
@@ -16,7 +17,7 @@ from lzero.worker import MuZeroEvaluator
 from lzero.entry.utils import initialize_zeros_batch
 
 
-def eval_muzero(
+def eval_iris(
         input_cfg: Tuple[dict, dict],
         seed: int = 0,
         model: Optional[torch.nn.Module] = None,
@@ -39,8 +40,7 @@ def eval_muzero(
         - policy (:obj:`Policy`): Converged policy.
     """
     cfg, create_cfg = input_cfg
-    assert create_cfg.policy.type in ['efficientzero', 'muzero', 'muzero_context', 'muzero_rnn_full_obs', 'stochastic_muzero', 'gumbel_muzero', 'sampled_efficientzero', 'unizero'], \
-        "LightZero now only support the following algo.:'efficientzero', 'muzero', 'muzero_context', 'muzero_rnn_full_obs', 'stochastic_muzero', 'gumbel_muzero', 'sampled_efficientzero', 'unizero'"
+    assert create_cfg.policy.type in ['iris'], "LightZero now only support the following algo.: 'iris'"
 
     if cfg.policy.cuda and torch.cuda.is_available():
         cfg.policy.device = 'cuda'
@@ -69,7 +69,7 @@ def eval_muzero(
     # MCTS+RL algorithms related core code
     # ==============================================================
     policy_config = cfg.policy
-    evaluator = MuZeroEvaluator(
+    evaluator = IrisEvaluator(
         eval_freq=cfg.policy.eval_freq,
         n_evaluator_episode=cfg.env.n_evaluator_episode,
         stop_value=cfg.env.stop_value,
@@ -94,7 +94,6 @@ def eval_muzero(
         for i in range(num_episodes_each_seed):
             stop_flag, episode_info = evaluator.eval(learner.save_checkpoint, learner.train_iter)
             returns.append(episode_info['eval_episode_return'])
-            print(stop_flag)
         returns = np.array(returns)
 
         if print_seed_details:

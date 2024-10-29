@@ -1,4 +1,11 @@
 # Created by .ignore support plugin (hsz.mobi)
+
+###  Experiment Results Wandb & Video
+./zoo/atari/entry/wandb/
+wandb/
+/zoo/atari/entry/video/
+video/
+
 ### ArchLinuxPackages template
 *.tar
 *.tar.*

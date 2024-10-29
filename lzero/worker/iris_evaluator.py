@@ -5,6 +5,8 @@ from typing import Optional, Callable, Tuple, Dict, Any
 
 import numpy as np
 import torch
+from torch.distributions import Categorical
+import wandb
 from ding.envs import BaseEnvManager
 from ding.torch_utils import to_ndarray, to_item, to_tensor
 from ding.utils import build_logger, EasyTimer
@@ -16,7 +18,7 @@ from lzero.mcts.buffer.game_segment import GameSegment
 from lzero.mcts.utils import prepare_observation
 
 
-class MuZeroEvaluator(ISerialEvaluator):
+class IrisEvaluator(ISerialEvaluator):
     """
     Overview:
         The Evaluator class for MCTS+RL algorithms, such as MuZero, EfficientZero, and Sampled EfficientZero.
@@ -260,7 +262,10 @@ class MuZeroEvaluator(ISerialEvaluator):
             ready_env_id = set()
             remain_episode = n_episode
             eps_steps_lst = np.zeros(env_nums)
+
+            episode_rewards = np.zeros(env_nums)
             with self._timer:
+                # ----------------------------- ONE ENVIRONMENT STEP ---------------------------------------------------
                 while not eval_monitor.is_finished():
                     # Get current ready env obs.
                     obs = self._env.ready_obs
@@ -285,9 +290,9 @@ class MuZeroEvaluator(ISerialEvaluator):
                     # ==============================================================
                     policy_output = self._policy.forward(stack_obs, action_mask, to_play, ready_env_id=ready_env_id)
 
+
                     actions_with_env_id = {k: v['action'] for k, v in policy_output.items()}
-                    distributions_dict_with_env_id = {k: v['visit_count_distributions'] for k, v in
-                                                      policy_output.items()}
+                    distributions_dict_with_env_id = {k: v['visit_count_distributions'] for k, v in policy_output.items()}
                     if self.policy_config.sampled_algo:
                         root_sampled_actions_dict_with_env_id = {
                             k: v['root_sampled_actions']
@@ -324,7 +329,7 @@ class MuZeroEvaluator(ISerialEvaluator):
                     timesteps = to_tensor(timesteps, dtype=torch.float32)
                     for env_id, t in timesteps.items():
                         obs, reward, done, info = t.obs, t.reward, t.done, t.info
-
+                        episode_rewards[env_id] += reward
                         eps_steps_lst[env_id] += 1
                         if self._policy.get_attribute('cfg').type == 'unizero':
                             # only for UniZero now
@@ -406,6 +411,27 @@ class MuZeroEvaluator(ISerialEvaluator):
                             ready_env_id.remove(env_id)
 
                         envstep_count += 1
+                        print(envstep_count)
+                        episode_return = eval_monitor.get_episode_return()
+                        metrics = {
+                            "reward": t.reward.item(),
+                            "done": t.done,
+                            "lives": t.info["lives"].item(),
+                            "frame_number": t.info["frame_number"].item(),
+                            "episode_frame_number": t.info["episode_frame_number"].item(),
+                            "episode_return": episode_rewards[env_id],
+                            "action": actions[env_id],
+                            "ac_action": policy_output[env_id]['ac_action'],
+                            "same_action": policy_output[env_id]['same_action'],
+                            "policy_entropy": policy_output[env_id]['policy_entropy'],
+                            "to_play": to_play_dict[env_id],
+                            "wm_predicted_value": value_dict[env_id],
+                            "mcts_visit_count_distribution_entropy": visit_entropy_dict[env_id],
+                            "mcts_visit_count_distribution": distributions_dict[env_id],
+                        }
+
+                        wandb.log(data=metrics)
+
             duration = self._timer.value
             episode_return = eval_monitor.get_episode_return()
             info = {

@@ -69,3 +69,9 @@ docs:
 	$(MAKE) -C "${DOC_DIR}" build
 pdocs:
 	$(MAKE) -C "${DOC_DIR}" prod
+
+
+# IRIS run experiments
+
+run_iris:
+	bash scripts/run_iris_atari_eval.sh

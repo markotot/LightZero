@@ -6,7 +6,7 @@ import torch
 from easydict import EasyDict
 
 import lzero.mcts.ptree.ptree_ez as tree_efficientzero
-import lzero.mcts.ptree.ptree_mz as tree_muzero
+import lzero.mcts.ptree.iris_ptree_mz as tree_muzero
 from lzero.mcts.ptree import MinMaxStatsList
 from lzero.policy import InverseScalarTransform, to_detach_cpu_numpy
 
@@ -137,7 +137,7 @@ class MuZeroMCTSPtree(object):
                     Each simulation starts from the internal root state s0, and finishes when the simulation reaches a leaf node s_l.
                 """
                 if self._cfg.env_type == 'not_board_games':
-                    latent_state_index_in_search_path, latent_state_index_in_batch, last_actions, virtual_to_play_batch = tree_muzero.batch_traverse(
+                    latent_state_index_in_search_path, latent_state_index_in_batch, last_actions, virtual_to_play_batch, hidden_states = tree_muzero.batch_traverse(
                         roots, pb_c_base, pb_c_init, discount_factor, min_max_stats_lst, results, to_play_batch
                     )
                 else:
@@ -160,21 +160,29 @@ class MuZeroMCTSPtree(object):
                 MCTS stage 3: Backup
                     At the end of the simulation, the statistics along the trajectory are updated.
                 """
-                network_output = model.recurrent_inference(latent_states, last_actions)
+
+                network_output = model.recurrent_inference(latent_states, last_actions, hidden_states)
 
                 if not model.training:
                     # if not in training, obtain the scalars of the value/reward
                     [
-                        network_output.latent_state, network_output.policy_logits, network_output.value,
-                        network_output.reward
+                        network_output.latent_state,
+                        network_output.policy_logits,
+                        network_output.value,
+                        network_output.reward,
                     ] = to_detach_cpu_numpy(
                         [
                             network_output.latent_state,
                             network_output.policy_logits,
-                            self.inverse_scalar_transform_handle(network_output.value),
-                            self.inverse_scalar_transform_handle(network_output.reward),
+                            network_output.value,
+                            network_output.reward,
                         ]
                     )
+                    network_output.hidden_state = (
+                        network_output.hidden_state[0].detach().cpu().numpy(),
+                        network_output.hidden_state[1].detach().cpu().numpy(),
+                    )
+
 
                 latent_state_batch_in_search_path.append(network_output.latent_state)
                 # tolist() is to be compatible with cpp datatype.

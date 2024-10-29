@@ -9,18 +9,19 @@ from ding.policy.base_policy import Policy
 from ding.torch_utils import to_tensor
 from ding.utils import POLICY_REGISTRY
 from lzero.entry.utils import initialize_zeros_batch
-from lzero.mcts import MuZeroMCTSCtree as MCTSCtree
-from lzero.mcts import MuZeroMCTSPtree as MCTSPtree
+from lzero.mcts.tree_search.iris_mcts_ctree import IrisMCTSTree as MCTSCtree
+from lzero.mcts.tree_search.iris_mcts_ptree import IrisMCTSPtree as MCTSPtree
 from lzero.model import ImageTransforms
 from lzero.model.utils import cal_dormant_ratio
 from lzero.policy import scalar_transform, InverseScalarTransform, cross_entropy_loss, phi_transform, \
     DiscreteSupport, to_torch_float_tensor, mz_network_output_unpack, select_action, negative_cosine_similarity, \
     prepare_obs, configure_optimizers
+from torch.distributions import Categorical
 from torch.nn import L1Loss
 
 
-@POLICY_REGISTRY.register('muzero')
-class MuZeroPolicy(Policy):
+@POLICY_REGISTRY.register('iris')
+class IrisPolicy(Policy):
     """
     Overview:
         if self._cfg.model.model_type in ["conv", "mlp"]:
@@ -36,7 +37,7 @@ class MuZeroPolicy(Policy):
     config = dict(
         model=dict(
             # (str) The model type. For 1-dimensional vector obs, we use mlp model. For the image obs, we use conv model.
-            model_type='conv',  # options={'mlp', 'conv'}
+            model_type='iris',  # options={'mlp', 'conv'}
             # (bool) If True, the action space of the environment is continuous, otherwise discrete.
             continuous_action_space=False,
             # (tuple) The stacked obs shape.
@@ -85,7 +86,7 @@ class MuZeroPolicy(Policy):
         # (bool) Whether to enable the gumbel-based algorithm (e.g. Gumbel Muzero)
         gumbel_algo=False,
         # (bool) Whether to use C++ MCTS in policy. If False, use Python implementation.
-        mcts_ctree=True,
+        mcts_ctree=False, # TODO: (NOTE) changed from True to False to use pMCTS instead of cMCTS
         # (bool) Whether to use cuda for network.
         cuda=True,
         # (int) The number of environments used in collecting data.
@@ -242,16 +243,9 @@ class MuZeroPolicy(Policy):
             The user can define and use customized network model but must obey the same interface definition indicated \
             by import_names path. For MuZero, ``lzero.model.muzero_model.MuZeroModel``
         """
-        if self._cfg.model.model_type == "conv":
-            return 'MuZeroModel', ['lzero.model.muzero_model']
-        elif self._cfg.model.model_type == "mlp":
-            return 'MuZeroModelMLP', ['lzero.model.muzero_model_mlp']
-        elif self._cfg.model.model_type == "conv_context":
-            return 'MuZeroContextModel', ['lzero.model.muzero_context_model']
-        elif self._cfg.model.model_type == "iris":
-            return 'IrisModel', ['lzero.model.iris_model']
-        else:
-            raise ValueError("model type {} is not supported".format(self._cfg.model.model_type))
+
+        return 'IrisModel', ['lzero.model.iris_model']
+
 
     def _init_learn(self) -> None:
         """
@@ -825,9 +819,6 @@ class MuZeroPolicy(Policy):
         if self._cfg.model.model_type == 'conv_context':
             self.last_batch_obs = torch.zeros([3, self._cfg.model.observation_shape[0], 64, 64]).to(self._cfg.device)
             self.last_batch_action = [-1 for _ in range(3)]
-        # elif self._cfg.model.model_type == 'mlp_context':
-        #     self.last_batch_obs = torch.zeros([3, self._cfg.model.observation_shape]).to(self._cfg.device)
-        #     self.last_batch_action = [-1 for _ in range(3)]
 
     def _forward_eval(self, data: torch.Tensor, action_mask: list, to_play: int = -1,
                       ready_env_id: np.array = None, ) -> Dict:
@@ -852,6 +843,7 @@ class MuZeroPolicy(Policy):
             - output (:obj:`Dict[int, Any]`): Dict type data, the keys including ``action``, ``distributions``, \
                 ``visit_count_distribution_entropy``, ``value``, ``pred_value``, ``policy_logits``.
         """
+        #self._eval_model = torch.compile(self._eval_model, mode='default')
         self._eval_model.eval()
         active_eval_env_num = data.shape[0]
         if ready_env_id is None:
@@ -859,16 +851,22 @@ class MuZeroPolicy(Policy):
         output = {i: None for i in ready_env_id}
         with torch.no_grad():
             if self._cfg.model.model_type in ["conv", "mlp"]:
-                network_output = self._eval_model.initial_inference(data)
-            elif self._cfg.model.model_type == "conv_context":
-                network_output = self._eval_model.initial_inference(self.last_batch_obs, self.last_batch_action, data)
-            latent_state_roots, reward_roots, pred_values, policy_logits = mz_network_output_unpack(network_output)
+                initial_hidden_state = self._eval_model.agent.get_model_hidden_state()
+                policy_logits, values, hidden_state = self._eval_model.predict(obs=data, model_hidden_state=initial_hidden_state)
+                batch_size = data.size(0)
+                reward_roots =  [0. for _ in range(batch_size)]
+
+
+
 
             if not self._eval_model.training:
                 # if not in training, obtain the scalars of the value/reward
-                pred_values = self.inverse_scalar_transform_handle(pred_values).detach().cpu().numpy()  # shape（B, 1）
-                latent_state_roots = latent_state_roots.detach().cpu().numpy()
+                predicted_values = values.detach().cpu().numpy()  # shape（B, 1）
+                obs_roots = data.detach().cpu().numpy()
+                policy_entropy = Categorical(logits=policy_logits).entropy().detach().cpu().numpy()
                 policy_logits = policy_logits.detach().cpu().numpy().tolist()  # list shape（B, A）
+                ac_action = np.argmax(policy_logits)
+
 
             legal_actions = [[i for i, x in enumerate(action_mask[j]) if x == 1] for j in range(active_eval_env_num)]
             if self._cfg.mcts_ctree:
@@ -876,10 +874,9 @@ class MuZeroPolicy(Policy):
                 roots = MCTSCtree.roots(active_eval_env_num, legal_actions)
             else:
                 # python mcts_tree
-                roots = MCTSPtree.roots(active_eval_env_num, legal_actions)
-            roots.prepare_no_noise(reward_roots, policy_logits, to_play)
-            self._mcts_eval.search(roots, self._eval_model, latent_state_roots, to_play)
-
+                roots = MCTSPtree.roots(active_eval_env_num, legal_actions, model_hidden_state=initial_hidden_state)
+            roots.prepare_no_noise(rewards=reward_roots, policies=policy_logits, to_play=to_play)
+            self._mcts_eval.search(roots, self._eval_model, obs_roots, to_play)
             # list of list, shape: ``{list: batch_size} -> {list: action_space_size}``
             roots_visit_count_distributions = roots.get_distributions()
             roots_values = roots.get_values()  # shape: {list: batch_size}
@@ -903,8 +900,11 @@ class MuZeroPolicy(Policy):
                     'visit_count_distributions': distributions,
                     'visit_count_distribution_entropy': visit_count_distribution_entropy,
                     'searched_value': value,
-                    'predicted_value': pred_values[i],
-                    'predicted_policy_logits': policy_logits[i],
+                    'predicted_value': predicted_values,
+                    'predicted_policy_logits': policy_logits,
+                    'policy_entropy': policy_entropy,
+                    'ac_action': ac_action, # argmax following policy
+                    'same_action': int(ac_action == action)
                 }
                 if self._cfg.model.model_type in ["conv_context"]:
                     batch_action.append(action)
@@ -913,6 +913,7 @@ class MuZeroPolicy(Policy):
                 self.last_batch_obs = data
                 self.last_batch_action = batch_action
 
+        self._eval_model.agent.set_model_hidden_state(hidden_state)
         return output
 
     def _reset_collect(self, data_id: Optional[List[int]] = None) -> None:

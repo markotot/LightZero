@@ -29,13 +29,13 @@ reanalyze_ratio = 0.
 # ==============================================================
 
 atari_muzero_config = dict(
-    exp_name=f'data_muzero/{env_id[:-14]}_atari_stack4_muzero_ns{num_simulations}_upc{update_per_collect}-rr{replay_ratio}_seed0',
+    exp_name=f'data_iris_mcts/{env_id[:-14]}_atari_ns{num_simulations}_upc{update_per_collect}-rr{replay_ratio}_seed0',
     env=dict(
         stop_value=int(1e6),
         env_id=env_id,
-        observation_shape=(4, 64, 64),  # (4, 96, 96)
-        frame_stack_num=4,
-        gray_scale=True,
+        observation_shape=(3, 64, 64),
+        frame_stack_num=1,
+        gray_scale=False,
         collector_env_num=collector_env_num,
         evaluator_env_num=evaluator_env_num,
         n_evaluator_episode=evaluator_env_num,
@@ -48,10 +48,10 @@ atari_muzero_config = dict(
         analysis_sim_norm=False,
         cal_dormant_ratio=False,
         model=dict(
-            observation_shape=(4, 64, 64),  # (4, 96, 96)
-            image_channel=1,
-            frame_stack_num=4,
-            gray_scale=True,
+            observation_shape=(3, 64, 64),  # (4, 96, 96)
+            image_channel=3,
+            frame_stack_num=1,
+            gray_scale=False,
             action_space_size=action_space_size,
             downsample=True,
             self_supervised_learning_loss=True,  # default is False
@@ -94,8 +94,8 @@ atari_muzero_create_config = dict(
     ),
     env_manager=dict(type='subprocess'),
     policy=dict(
-        type='muzero',
-        import_names=['lzero.policy.muzero'],
+        type='iris',
+        import_names=['lzero.policy.iris_policy'],
     ),
 )
 atari_muzero_create_config = EasyDict(atari_muzero_create_config)

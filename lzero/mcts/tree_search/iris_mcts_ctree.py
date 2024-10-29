@@ -170,7 +170,7 @@ class UniZeroMCTSCtree(object):
                 )
 
 
-class MuZeroMCTSCtree(object):
+class IrisMCTSTree(object):
     """
     Overview:
         MCTSCtree for MuZero. The core ``batch_traverse`` and ``batch_backpropagate`` function is implemented in C++.
@@ -300,8 +300,8 @@ class MuZeroMCTSCtree(object):
 
                 network_output.latent_state = to_detach_cpu_numpy(network_output.latent_state)
                 network_output.policy_logits = to_detach_cpu_numpy(network_output.policy_logits)
-                network_output.value = to_detach_cpu_numpy(self.inverse_scalar_transform_handle(network_output.value))
-                network_output.reward = to_detach_cpu_numpy(self.inverse_scalar_transform_handle(network_output.reward))
+                network_output.value = to_detach_cpu_numpy(network_output.value)
+                network_output.reward = to_detach_cpu_numpy(network_output.reward)
 
                 latent_state_batch_in_search_path.append(network_output.latent_state)
 
@@ -429,7 +429,7 @@ class MuZeroRNNFullObsMCTSCtree(object):
         which are implemented in C++.
     Interfaces:
         ``__init__``, ``roots``, ``search``
-    
+
     ..note::
         The benefit of searching for a batch of nodes at the same time is that \
         it can be parallelized during model inference, thus saving time.
@@ -489,7 +489,7 @@ class MuZeroRNNFullObsMCTSCtree(object):
         Arguments:
             - root_num (:obj:`int`): the number of the roots in a batch.
             - legal_action_list (:obj:`List[Any]`): the vector of the legal actions for the roots.
-        
+
         ..note::
             The initialization is achieved by the ``Roots`` class from the ``ctree_muzero`` module.
         """
@@ -510,7 +510,7 @@ class MuZeroRNNFullObsMCTSCtree(object):
             - reward_hidden_state_roots (:obj:`list`): the value prefix hidden states in LSTM of the roots.
             - model (:obj:`torch.nn.Module`): The model used for inference.
             - to_play (:obj:`list`): the to_play list used in self-play-mode board games.
-        
+
         .. note::
             The core functions ``batch_traverse`` and ``batch_backpropagate`` are implemented in C++.
         """
@@ -630,7 +630,7 @@ class EfficientZeroMCTSCtree(object):
         which are implemented in C++.
     Interfaces:
         ``__init__``, ``roots``, ``search``
-    
+
     ..note::
         The benefit of searching for a batch of nodes at the same time is that \
         it can be parallelized during model inference, thus saving time.
@@ -689,7 +689,7 @@ class EfficientZeroMCTSCtree(object):
         Arguments:
             - root_num (:obj:`int`): the number of the roots in a batch.
             - legal_action_list (:obj:`List[Any]`): the vector of the legal actions for the roots.
-        
+
         ..note::
             The initialization is achieved by the ``Roots`` class from the ``ctree_efficientzero`` module.
         """
@@ -709,7 +709,7 @@ class EfficientZeroMCTSCtree(object):
             - reward_hidden_state_roots (:obj:`list`): the value prefix hidden states in LSTM of the roots.
             - model (:obj:`torch.nn.Module`): The model used for inference.
             - to_play (:obj:`list`): the to_play list used in in self-play-mode board games.
-        
+
         .. note::
             The core functions ``batch_traverse`` and ``batch_backpropagate`` are implemented in C++.
         """

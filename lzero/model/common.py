@@ -18,6 +18,8 @@ from ding.torch_utils import MLP, ResBlock
 from ding.utils import SequenceType
 from ditk import logging
 
+from iris.src.models.kv_caching import KeysValues
+
 
 # use dataclass to make the output of network more convenient to use
 @dataclass
@@ -49,6 +51,14 @@ class MZNetworkOutput:
     policy_logits: torch.Tensor
     latent_state: torch.Tensor
 
+@dataclass
+class IrisNetworkOutput:
+    # output format of the Iris model
+    value: torch.Tensor
+    reward: torch.Tensor
+    policy_logits: torch.Tensor
+    latent_state: torch.Tensor
+    hidden_state: Tuple[torch.Tensor, torch.Tensor]
 
 class SimNorm(nn.Module):
 
