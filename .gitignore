@@ -1313,7 +1313,6 @@ luac.out
 # Precompiled Headers
 
 # Libraries
-*.def
 
 # Shared objects (inc. Windows DLLs)
 

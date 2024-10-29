@@ -1,0 +1,21 @@
+Bootstrap: docker
+From: nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
+
+%files
+    LightZero LightZero
+%post
+    apt-get -y update
+    pip install -e ./LightZero
+    pip install -r ./iris/requirements.txt
+%runscript
+
+    cd LightZero
+    if [ $JOB_TYPE = "pull_git" ]; then
+        git pull
+        git checkout $GIT_BRANCH
+        git pull
+    elif [ $JOB_TYPE = "run_iris" ]; then
+        bash scripts/run_iris.sh RUN_NAME=$RUN_NAME SEED=$SEED
+    elif [ $JOB_TYPE = "run_aggregate" ]; then
+        bash scripts/launch_aggregate_data.sh $RUN_NAME=$RUN_NAME START_ID=$START_ID END_ID=$END_ID
+    fi
