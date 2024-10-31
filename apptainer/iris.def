@@ -38,7 +38,7 @@ From: nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
 
 %runscript
 
-    # cd LightZero
+
     # echo "VirtualENV"
     # echo $VIRTUAL_ENV
     # echo "WANDBKEY"
@@ -54,6 +54,7 @@ From: nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
     # echo "Pip list"
     # pip list
 
+    cd LightZero
     if [ $JOB_TYPE = "pull_git" ]; then
         git pull
         git checkout $GIT_BRANCH
