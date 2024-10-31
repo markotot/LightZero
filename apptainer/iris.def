@@ -39,20 +39,9 @@ From: nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
 %runscript
 
 
-    # echo "VirtualENV"
-    # echo $VIRTUAL_ENV
-    # echo "WANDBKEY"
-    # echo $WANDB_API_KEY
 
-    # which python
-    # which python3
-    # which pip
-    # which pip3
-
-    # python3 -V
-
-    # echo "Pip list"
-    # pip list
+    echo "WANDBKEY"
+    echo $WANDB_API_KEY
 
     cd LightZero
     if [ $JOB_TYPE = "pull_git" ]; then
