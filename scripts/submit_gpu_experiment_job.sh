@@ -10,4 +10,4 @@
 module load python/3.10.14
 
 APPTAINERENV_NSLOTS=${NSLOTS}
-bash scripts/submit_build_job.sh
+bash scripts/run_playground.sh
