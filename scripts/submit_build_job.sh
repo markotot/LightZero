@@ -6,7 +6,7 @@
 #$ -j y
 #$ -o job_results
 
-module load python/3.8.5
+module load python/3.10.14
 
 # Replace the following line with a program or command
 APPTAINERENV_NSLOTS=${NSLOTS}
