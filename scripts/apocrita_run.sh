@@ -18,8 +18,7 @@ set PULL_JOB_PARAMS "-N ${RUN_NAME}-Pull -v RUN_NAME=$RUN_NAME,GIT_BRANCH=$GIT_B
 #set AGGREGATE_JOB_PARAMS "-hold_jid ${RUN_NAME}-Experiment -N ${RUN_NAME}-Aggregate -v RUN_NAME=$RUN_NAME,START_ID=$START_SEED,END_ID=$END_SEED,JOB_TYPE=\"run_aggregate\" $PROJECT_NAME/scripts/submit_experiment_job.sh"
 
 #set EXPERIMENT_JOB_PARAMS "-hold_jid ${RUN_NAME}-Pull -N ${RUN_NAME}-Experiment -v RUN_NAME=$RUN_NAME,GIT_BRANCH=$GIT_BRANCH,JOB_TYPE=\"run_experiment\" $PROJECT_NAME/scripts/submit_experiment_job.sh"
-#set EXPERIMENT_JOB_PARAMS "-hold_jid ${RUN_NAME}-Pull -N ${RUN_NAME}-Experiment -v RUN_NAME=$RUN_NAME,GIT_BRANCH=$GIT_BRANCH,JOB_TYPE=\"run_playground\" $PROJECT_NAME/scripts/submit_experiment_job.sh"
-set EXPERIMENT_JOB_PARAMS "-hold_jid ${RUN_NAME}-Pull -N ${RUN_NAME}-Experiment -v RUN_NAME=$RUN_NAME,GIT_BRANCH=$GIT_BRANCH,JOB_TYPE=\"run_playground\" $PROJECT_NAME/scripts/submit_gpu_experiment_job.sh"
+set EXPERIMENT_JOB_PARAMS "-hold_jid ${RUN_NAME}-Pull -N ${RUN_NAME}-Experiment -v RUN_NAME=$RUN_NAME,GIT_BRANCH=$GIT_BRANCH,JOB_TYPE=\"run_playground\" $PROJECT_NAME/scripts/submit_experiment_job.sh"
 
 spawn ssh -i $APOC_PRIVATE_KEY $APOC_USERNAME@login.hpc.qmul.ac.uk \
  "
