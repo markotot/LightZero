@@ -1,6 +1,7 @@
 #!/bin/bash
-#$ -pe smp 1
-#$ -l h_vmem=1G
+#$ -pe smp 2
+#$ -l h_vmem=8G
+#$ -l gpu=1
 #$ -l h_rt=1:0:0
 #$ -cwd
 #$ -j y
