@@ -1,4 +1,5 @@
 import copy
+import gc
 from typing import List, Dict, Any, Tuple, Union, Optional
 
 import numpy as np
@@ -18,6 +19,9 @@ from lzero.policy import scalar_transform, InverseScalarTransform, cross_entropy
     prepare_obs, configure_optimizers
 from torch.distributions import Categorical
 from torch.nn import L1Loss
+
+import psutil
+import os
 
 @POLICY_REGISTRY.register('iris')
 class IrisPolicy(Policy):
@@ -723,9 +727,12 @@ class IrisPolicy(Policy):
                 else:
                     # python mcts_tree
                     roots = MCTSPtree.roots(active_collect_env_num, legal_actions)
+                # print(f"Memory used before script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
                 roots.prepare(self._cfg.root_noise_weight, noises, reward_roots, policy_logits, to_play)
                 self._mcts_collect.search(roots, self._collect_model, latent_state_roots, to_play)
+
+                # print(f"Memory used after script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
                 # list of list, shape: ``{list: batch_size} -> {list: action_space_size}``
                 roots_visit_count_distributions = roots.get_distributions()
@@ -811,10 +818,10 @@ class IrisPolicy(Policy):
             Evaluate mode init method. Called by ``self.__init__``. Initialize the eval model and MCTS utils.
         """
         self._eval_model = self._model
-        if self._cfg.mcts_ctree:
-            self._mcts_eval = MCTSCtree(self._cfg)
-        else:
-            self._mcts_eval = MCTSPtree(self._cfg)
+        # if self._cfg.mcts_ctree:
+        #     self._mcts_eval = MCTSCtree(self._cfg)
+        # else:
+        self._mcts_eval = MCTSPtree(self._cfg)
         if self._cfg.model.model_type == 'conv_context':
             self.last_batch_obs = torch.zeros([3, self._cfg.model.observation_shape[0], 64, 64]).to(self._cfg.device)
             self.last_batch_action = [-1 for _ in range(3)]
@@ -842,6 +849,7 @@ class IrisPolicy(Policy):
             - output (:obj:`Dict[int, Any]`): Dict type data, the keys including ``action``, ``distributions``, \
                 ``visit_count_distribution_entropy``, ``value``, ``pred_value``, ``policy_logits``.
         """
+        gc.collect()
         #self._eval_model = torch.compile(self._eval_model, mode='default')
         self._eval_model.eval()
         active_eval_env_num = data.shape[0]
@@ -875,7 +883,11 @@ class IrisPolicy(Policy):
                 roots = MCTSPtree.roots(active_eval_env_num, legal_actions, model_hidden_state=initial_hidden_state)
 
             roots.prepare_no_noise(rewards=reward_roots, policies=policy_logits, to_play=to_play)
+
+            # print(f"Memory before search: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
+
             self._mcts_eval.search(roots, self._eval_model, obs_roots, to_play)
+            # print(f"Memory after search: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
             # list of list, shape: ``{list: batch_size} -> {list: action_space_size}``
             roots_visit_count_distributions = roots.get_distributions()
@@ -908,11 +920,9 @@ class IrisPolicy(Policy):
                 }
                 if self._cfg.model.model_type in ["conv_context"]:
                     batch_action.append(action)
-
             if self._cfg.model.model_type in ["conv_context"]:
                 self.last_batch_obs = data
                 self.last_batch_action = batch_action
-
         self._eval_model.agent.set_model_hidden_state(hidden_state)
         return output
 

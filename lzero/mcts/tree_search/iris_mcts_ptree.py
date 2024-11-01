@@ -111,8 +111,8 @@ class IrisMCTSPtree(object):
         .. note::
             The core functions ``batch_traverse`` and ``batch_backpropagate`` are implemented in Python.
         """
-        print("Start")
-        print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
+        # print("Start")
+        # print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
         with torch.no_grad():
             model.eval()
 
@@ -162,11 +162,11 @@ class IrisMCTSPtree(object):
                 MCTS stage 3: Backup
                     At the end of the simulation, the statistics along the trajectory are updated.
                 """
-                print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
+                #print(f"Memory before recurrent_inference call: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
                 network_output = model.recurrent_inference(observations, last_actions, hidden_states[0], world_model_kv_cache[0])
 
-                print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
+                #print(f"Memory after recurrent_inference call: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
                 if not model.training:
                     # if not in training, obtain the scalars of the value/reward
@@ -184,10 +184,11 @@ class IrisMCTSPtree(object):
                 observation_batch_in_search_path.append(network_output.latent_state)
                 model_hidden_state = model.agent.get_model_hidden_state()
                 world_model_kv_cache = model.world_model_env.get_a_copy_of_kv_cache()
-                # tolist() is to be compatible with cpp datatype.
                 value_batch = network_output.value.reshape(-1).tolist()
                 reward_batch = network_output.reward.reshape(-1).tolist()
                 policy_logits_batch = network_output.policy_logits.tolist()
+
+                #print(f"Memory used after get_a_copy_of_kv_cache: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
                 # In ``batch_backpropagate()``, we first expand the leaf node using ``the policy_logits`` and
                 # ``reward`` predicted by the model, then perform backpropagation along the search path to update the
@@ -206,7 +207,6 @@ class IrisMCTSPtree(object):
                     results=results,
                     to_play=virtual_to_play_batch
                 )
-                print("End iter")
+                # print("End iter")
 
-            print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
-            print("End")
+            # print("End search")

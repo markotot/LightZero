@@ -89,21 +89,21 @@ class IrisModel(nn.Module):
                             model_hidden_state: Tuple[np.ndarray, np.ndarray],
                             wm_keys_values: KeysValues) -> IrisNetworkOutput:
 
-        print("Start recurrent_inference")
-        print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
+        # print("Start recurrent_inference")
+        # print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
         if wm_keys_values is None:
             next_obs = self.world_model_env.reset_from_initial_observations(observation)
         else:
             self.world_model_env.set_kv_cache(wm_keys_values)
 
-        print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
+        # print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
 
         next_obs, reward, done, _ = self.world_model_env.step(action, should_predict_next_obs=True)
         policy_logits, value, hidden_state = self.predict(next_obs, model_hidden_state=model_hidden_state, temperature=1.0)
 
-        print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
+        # print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
 
         output = IrisNetworkOutput(
@@ -114,8 +114,8 @@ class IrisModel(nn.Module):
             hidden_state=hidden_state,
         )
 
-        print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
-        print("End recurrent_inference")
+        # print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
+        # print("End recurrent_inference")
 
         return output
 
