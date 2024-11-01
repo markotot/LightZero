@@ -9,6 +9,9 @@ import lzero.mcts.ptree.iris_ptree_mz as tree_muzero
 from lzero.mcts.ptree import MinMaxStatsList
 from lzero.policy import InverseScalarTransform, to_detach_cpu_numpy
 
+import psutil
+import os
+
 if TYPE_CHECKING:
     import lzero.mcts.ptree.ptree_ez as ez_ptree
     import lzero.mcts.ptree.iris_ptree_mz as mz_ptree
@@ -108,6 +111,8 @@ class IrisMCTSPtree(object):
         .. note::
             The core functions ``batch_traverse`` and ``batch_backpropagate`` are implemented in Python.
         """
+        print("Start")
+        print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
         with torch.no_grad():
             model.eval()
 
@@ -120,7 +125,6 @@ class IrisMCTSPtree(object):
 
             # minimax value storage
             min_max_stats_lst = MinMaxStatsList(batch_size)
-
             for simulation_index in range(self._cfg.num_simulations):
                 # In each simulation, we expanded a new node, so in one search, we have ``num_simulations`` num of nodes at most.
 
@@ -145,7 +149,6 @@ class IrisMCTSPtree(object):
                         roots, pb_c_base, pb_c_init, discount_factor, min_max_stats_lst, results,
                         copy.deepcopy(to_play_batch)
                     )
-
                 # obtain the latent state for leaf node
                 for ix, iy in zip(latent_state_index_in_search_path, latent_state_index_in_batch):
                     observations.append(observation_batch_in_search_path[ix][iy])
@@ -159,7 +162,11 @@ class IrisMCTSPtree(object):
                 MCTS stage 3: Backup
                     At the end of the simulation, the statistics along the trajectory are updated.
                 """
+                print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
+
                 network_output = model.recurrent_inference(observations, last_actions, hidden_states[0], world_model_kv_cache[0])
+
+                print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
                 if not model.training:
                     # if not in training, obtain the scalars of the value/reward
@@ -174,7 +181,6 @@ class IrisMCTSPtree(object):
                             network_output.reward,
                         ]
                     )
-
                 observation_batch_in_search_path.append(network_output.latent_state)
                 model_hidden_state = model.agent.get_model_hidden_state()
                 world_model_kv_cache = model.world_model_env.get_a_copy_of_kv_cache()
@@ -186,7 +192,6 @@ class IrisMCTSPtree(object):
                 # In ``batch_backpropagate()``, we first expand the leaf node using ``the policy_logits`` and
                 # ``reward`` predicted by the model, then perform backpropagation along the search path to update the
                 # statistics.
-
                 # NOTE: simulation_index + 1 is very important, which is the depth of the current leaf node.
                 current_latent_state_index = simulation_index + 1
                 tree_muzero.batch_backpropagate(
@@ -201,3 +206,7 @@ class IrisMCTSPtree(object):
                     results=results,
                     to_play=virtual_to_play_batch
                 )
+                print("End iter")
+
+            print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
+            print("End")

@@ -17,6 +17,9 @@ from easydict import EasyDict
 from lzero.mcts.buffer.game_segment import GameSegment
 from lzero.mcts.utils import prepare_observation
 
+import psutil
+import os
+
 
 class IrisEvaluator(ISerialEvaluator):
     """
@@ -267,14 +270,19 @@ class IrisEvaluator(ISerialEvaluator):
             with self._timer:
                 # ----------------------------- ONE ENVIRONMENT STEP ---------------------------------------------------
                 while not eval_monitor.is_finished():
+
+
+
                     # Get current ready env obs.
                     obs = self._env.ready_obs
                     new_available_env_id = set(obs.keys()).difference(ready_env_id)
                     ready_env_id = ready_env_id.union(set(list(new_available_env_id)[:remain_episode]))
                     remain_episode -= min(len(new_available_env_id), remain_episode)
 
+
                     stack_obs = {env_id: game_segments[env_id].get_obs() for env_id in ready_env_id}
                     stack_obs = list(stack_obs.values())
+
 
                     action_mask_dict = {env_id: action_mask_dict[env_id] for env_id in ready_env_id}
                     to_play_dict = {env_id: to_play_dict[env_id] for env_id in ready_env_id}
@@ -284,6 +292,9 @@ class IrisEvaluator(ISerialEvaluator):
                     stack_obs = to_ndarray(stack_obs)
                     stack_obs = prepare_observation(stack_obs, self.policy_config.model.model_type)
                     stack_obs = torch.from_numpy(stack_obs).to(self.policy_config.device).float()
+
+                    # process = psutil.Process(os.getpid())
+                    # print(f"Memory used before running the script: {process.memory_info().rss / 1024 ** 2:.2f} MB")
 
                     # ==============================================================
                     # policy forward
@@ -321,6 +332,7 @@ class IrisEvaluator(ISerialEvaluator):
                         value_dict[env_id] = value_dict_with_env_id.pop(env_id)
                         pred_value_dict[env_id] = pred_value_dict_with_env_id.pop(env_id)
                         visit_entropy_dict[env_id] = visit_entropy_dict_with_env_id.pop(env_id)
+
 
                     # ==============================================================
                     # Interact with env.
@@ -411,7 +423,7 @@ class IrisEvaluator(ISerialEvaluator):
                             ready_env_id.remove(env_id)
 
                         envstep_count += 1
-                        print(envstep_count)
+                        # print(envstep_count)
                         episode_return = eval_monitor.get_episode_return()
                         metrics = {
                             "reward": t.reward.item(),
@@ -431,6 +443,7 @@ class IrisEvaluator(ISerialEvaluator):
                         }
 
                         wandb.log(data=metrics)
+
 
             duration = self._timer.value
             episode_return = eval_monitor.get_episode_return()

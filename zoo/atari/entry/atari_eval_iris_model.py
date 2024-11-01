@@ -1,6 +1,12 @@
 from lzero.entry.eval_iris import eval_iris
 import numpy as np
 import wandb
+import sys
+
+import psutil
+import os
+process = psutil.Process(os.getpid())
+
 
 if __name__ == "__main__":
     """
@@ -17,6 +23,8 @@ if __name__ == "__main__":
         - returns_mean_seeds (:obj:`np.array`): Array of mean return values for each seed.
         - returns_seeds (:obj:`np.array`): Array of all return values for each seed.
     """
+
+
     # Importing the necessary configuration files from the atari muzero configuration in the zoo directory.
     from zoo.atari.config.atari_iris_model_config import main_config, create_config
 
@@ -24,8 +32,12 @@ if __name__ == "__main__":
     # If no path is provided, the script will use the default model.
     model_path = None
 
+    if len(sys.argv) > 1:
+        seed = int(sys.argv[1])
+    else:
+        seed = 0
     # seeds is a list of seed values for the random number generator, used to initialize the environment.
-    seeds = [0, 1]
+    seeds = [seed]
     # num_episodes_each_seed is the number of episodes to run for each seed.
     num_episodes_each_seed = 1
     # total_test_episodes is the total number of test episodes, calculated as the product of the number of seeds and the number of episodes per seed

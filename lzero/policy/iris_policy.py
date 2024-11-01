@@ -19,7 +19,6 @@ from lzero.policy import scalar_transform, InverseScalarTransform, cross_entropy
 from torch.distributions import Categorical
 from torch.nn import L1Loss
 
-
 @POLICY_REGISTRY.register('iris')
 class IrisPolicy(Policy):
     """
@@ -849,15 +848,14 @@ class IrisPolicy(Policy):
         if ready_env_id is None:
             ready_env_id = np.arange(active_eval_env_num)
         output = {i: None for i in ready_env_id}
+
+
         with torch.no_grad():
             if self._cfg.model.model_type in ["conv", "mlp"]:
                 initial_hidden_state = self._eval_model.agent.get_model_hidden_state()
                 policy_logits, values, hidden_state = self._eval_model.predict(obs=data, model_hidden_state=initial_hidden_state)
                 batch_size = data.size(0)
                 reward_roots =  [0. for _ in range(batch_size)]
-
-
-
 
             if not self._eval_model.training:
                 # if not in training, obtain the scalars of the value/reward
@@ -875,8 +873,10 @@ class IrisPolicy(Policy):
             else:
                 # python mcts_tree
                 roots = MCTSPtree.roots(active_eval_env_num, legal_actions, model_hidden_state=initial_hidden_state)
+
             roots.prepare_no_noise(rewards=reward_roots, policies=policy_logits, to_play=to_play)
             self._mcts_eval.search(roots, self._eval_model, obs_roots, to_play)
+
             # list of list, shape: ``{list: batch_size} -> {list: action_space_size}``
             roots_visit_count_distributions = roots.get_distributions()
             roots_values = roots.get_values()  # shape: {list: batch_size}

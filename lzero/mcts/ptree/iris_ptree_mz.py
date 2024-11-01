@@ -11,6 +11,8 @@ import torch
 from iris.src.models.kv_caching import KeysValues
 from .minimax import MinMaxStats
 
+import psutil
+import os
 
 class Node:
     """

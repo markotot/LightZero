@@ -16,6 +16,9 @@ if TYPE_CHECKING:
     from lzero.mcts.ctree.ctree_gumbel_muzero import gmz_tree as gmz_ctree
 
 
+
+
+
 class UniZeroMCTSCtree(object):
     """
     Overview:
@@ -239,6 +242,8 @@ class IrisMCTSTree(object):
             - latent_state_roots (:obj:`list`): the hidden states of the roots
             - to_play_batch (:obj:`list`): the to_play_batch list used in in self-play-mode board games
         """
+
+
         with torch.no_grad():
             model.eval()
 
@@ -253,6 +258,7 @@ class IrisMCTSTree(object):
             min_max_stats_lst.set_delta(self._cfg.value_delta_max)
 
             last_latent_state = latent_state_roots
+
             for simulation_index in range(self._cfg.num_simulations):
                 # In each simulation, we expanded a new node, so in one search, we have ``num_simulations`` num of nodes at most.
 
@@ -279,7 +285,6 @@ class IrisMCTSTree(object):
                         roots, pb_c_base, pb_c_init, discount_factor, min_max_stats_lst, results,
                         copy.deepcopy(to_play_batch)
                     )
-
                 # obtain the latent state for leaf node
                 for ix, iy in zip(latent_state_index_in_search_path, latent_state_index_in_batch):
                     latent_states.append(latent_state_batch_in_search_path[ix][iy])
@@ -288,7 +293,6 @@ class IrisMCTSTree(object):
                 # latent_states = torch.from_numpy(np.asarray(latent_states)).to(self._cfg.device).float()
                 # TODO: .long() is only for discrete action
                 last_actions = torch.from_numpy(np.asarray(last_actions)).to(self._cfg.device).long()
-
                 """
                 MCTS stage 2: Expansion
                     At the final time-step l of the simulation, the next_latent_state and reward/value_prefix are computed by the dynamics function.
@@ -313,7 +317,6 @@ class IrisMCTSTree(object):
                 # In ``batch_backpropagate()``, we first expand the leaf node using ``the policy_logits`` and
                 # ``reward`` predicted by the model, then perform backpropagation along the search path to update the
                 # statistics.
-
                 # NOTE: simulation_index + 1 is very important, which is the depth of the current leaf node.
                 current_latent_state_index = simulation_index + 1
                 tree_muzero.batch_backpropagate(
