@@ -6,6 +6,9 @@ wandb/
 /zoo/atari/entry/video/
 video/
 
+### Ignore pretrained ckpt files
+/checkpoints/pretrained_iris/*
+
 ### ArchLinuxPackages template
 *.tar
 *.tar.*
