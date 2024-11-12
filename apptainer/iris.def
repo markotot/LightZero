@@ -54,7 +54,7 @@ From: nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
     elif [ $JOB_TYPE = "run_playground" ]; then
         echo "Running playground"
         bash scripts/run_playground.sh
-    elif [ $JOB_TYPE = "download_ckpts" ]; then
+    elif [ $JOB_TYPE = "download_checkpoints" ]; then
         echo "Downloading checkpoints"
         bash scripts/download_checkpoints.sh
     fi
