@@ -2,7 +2,8 @@
 cd zoo/atari/entry/
 
 seeds=("0" "1" "2" "3" "4" "5")
+environment="BreakoutNoFrameskip-v4"
 
 for seed in "${seeds[@]}"; do
-    python3 -m atari_eval_iris_model "$seed" &
+    python3 -m atari_eval_iris_model "$seed" $environment &
 done
