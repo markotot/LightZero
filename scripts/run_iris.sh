@@ -8,3 +8,5 @@ for ((i=0; i<=NUM_SEEDS; i++)); do
     python3 -m atari_eval_iris_model $i $environment &
 done
 
+wait
+echo "All seeds have been evaluated"

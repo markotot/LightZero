@@ -7,5 +7,4 @@
 #$ -o job_results
 
 APPTAINERENV_NSLOTS=${NSLOTS}
-
 apptainer run --nv --env-file myenvs --env "JOB_TYPE=$JOB_TYPE" containers/iris.sif
