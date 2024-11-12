@@ -6,8 +6,6 @@
 #$ -j y
 #$ -o job_results
 
-
-
 module load python/3.10.14
 
 APPTAINERENV_NSLOTS=${NSLOTS}
