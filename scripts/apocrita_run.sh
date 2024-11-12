@@ -14,8 +14,8 @@ set RUN_NAME [lindex $argv 8];
 set ENV_NAME [lindex $argv 9];
 
 
-set PULL_JOB_PARAMS "-N ${RUN_NAME}-Pull -v RUN_NAME=$RUN_NAME,GIT_BRANCH=$GIT_BRANCH,JOB_TYPE=\"pull_git\" $PROJECT_NAME/scripts/submit_experiment_job.sh"
-set EXPERIMENT_JOB_PARAMS "-hold_jid ${RUN_NAME}-Pull -N ${RUN_NAME}-Experiment -v RUN_NAME=$RUN_NAME,NUM_SEEDS=$NUM_SEEDS,ENV_NAME=$ENV_NAME,GIT_BRANCH=$GIT_BRANCH,JOB_TYPE=\"run_experiment\" $PROJECT_NAME/scripts/submit_experiment_job.sh"
+set PULL_JOB_PARAMS "-N ${RUN_NAME}-Pull -v JOB_TYPE=\"pull_git\",RUN_NAME=$RUN_NAME,GIT_BRANCH=$GIT_BRANCH $PROJECT_NAME/scripts/submit_experiment_job.sh"
+set EXPERIMENT_JOB_PARAMS "-hold_jid ${RUN_NAME}-Pull -N ${RUN_NAME}-Experiment -v JOB_TYPE=\"run_experiment\",RUN_NAME=$RUN_NAME,NUM_SEEDS=$NUM_SEEDS,ENV_NAME=$ENV_NAME,GIT_BRANCH=$GIT_BRANCH,WANDB_API_KEY=$WANDB_API_KEY $PROJECT_NAME/scripts/submit_experiment_job.sh"
 
 spawn ssh -i $APOC_PRIVATE_KEY $APOC_USERNAME@login.hpc.qmul.ac.uk \
  "
