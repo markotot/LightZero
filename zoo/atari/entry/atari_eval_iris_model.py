@@ -1,18 +1,15 @@
 import sys
 import os
 print(sys.path)
-print(sys.executable)
-print(os.getcwd())
+#print(sys.executable)
+#print(os.getcwd())
 
 original_cwd = os.getcwd().split("/zoo/atari/entry")[0]
-print(original_cwd)
+
 sys.path.append(original_cwd+"/lzero")
 sys.path.append(original_cwd+"/iris")
+print(original_cwd)
 print(sys.path)
-
-
-
-
 
 
 from lzero.entry.eval_iris import eval_iris
