@@ -6,8 +6,8 @@ print(os.getcwd())
 
 original_cwd = os.getcwd().split("/zoo/atari/entry")[0]
 print(original_cwd)
-sys.path.append(original_cwd)
-
+sys.path.append(original_cwd+"/lzero")
+sys.path.append(original_cwd+"/iris")
 print(sys.path)
 
 
