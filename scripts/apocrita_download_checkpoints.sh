@@ -14,7 +14,7 @@ set END_SEED [lindex $argv 8];
 set RUN_NAME [lindex $argv 9];
 
 set PULL_JOB_PARAMS "-N ${RUN_NAME}-Pull -v RUN_NAME=$RUN_NAME,GIT_BRANCH=$GIT_BRANCH,JOB_TYPE=\"pull_git\" $PROJECT_NAME/scripts/submit_experiment_job.sh"
-set EXPERIMENT_JOB_PARAMS "-hold_jid ${RUN_NAME}-Pull -N ${RUN_NAME}-Experiment -v RUN_NAME=$RUN_NAME,GIT_BRANCH=$GIT_BRANCH,JOB_TYPE=\"download_checkpoints\" $PROJECT_NAME/scripts/submit_experiment_job.sh"
+set EXPERIMENT_JOB_PARAMS "-hold_jid ${RUN_NAME}-Pull -N ${RUN_NAME}-Download -v RUN_NAME=$RUN_NAME,GIT_BRANCH=$GIT_BRANCH,JOB_TYPE=\"download_checkpoints\" $PROJECT_NAME/scripts/submit_experiment_job.sh"
 
 spawn ssh -i $APOC_PRIVATE_KEY $APOC_USERNAME@login.hpc.qmul.ac.uk \
  "
