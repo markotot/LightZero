@@ -5,7 +5,8 @@ set NUM_SEEDS [lindex $argv 0]
 set ENV_NAME [lindex $argv 1]
 
 for ((i=0; i<=NUM_SEEDS; i++)); do
-    python3 -m atari_eval_iris_model $i $environment &
+    echo "Evaluating seed $i on environment $ENV_NAME"
+    python3 -m atari_eval_iris_model $i $ENV_NAME &
 done
 
 wait
