@@ -4,9 +4,15 @@ print(sys.path)
 print(sys.executable)
 print(os.getcwd())
 
-# To print all environment variables
-for key, value in os.environ.items():
-    print(f"{key}: {value}")
+original_cwd = os.getcwd().split("/zoo/atari/entry")[0]
+print(original_cwd)
+sys.path.append(original_cwd)
+
+print(sys.path)
+
+
+
+
 
 
 from lzero.entry.eval_iris import eval_iris
