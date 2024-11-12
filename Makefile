@@ -63,4 +63,4 @@ apocrita_qstat:
 
 .SILENT: local_run
 local_run:
-	sudo bash ./scripts/run_iris.sh ${NUM_SEEDS} ${ENV_NAME}
+	sudo bash ./scripts/run_iris_local.sh ${NUM_SEEDS} ${ENV_NAME}

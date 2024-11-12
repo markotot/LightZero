@@ -1,13 +1,13 @@
 # Description: Run the evaluation of the Iris model on the Atari environment
 
 
-
+source home/marko/miniconda3/etc/profile.d/conda.sh
+conda activate iris
 python3 --version
 
 cd zoo/atari/entry/
 NUM_SEEDS=$1
 ENV_NAME=$2
-
 
 echo "Evaluating Iris model on $NUM_SEEDS seeds on environment $ENV_NAME"
 
