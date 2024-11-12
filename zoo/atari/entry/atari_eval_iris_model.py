@@ -1,10 +1,18 @@
+import sys
+import os
+print(sys.path)
+print(sys.executable)
+print(os.getcwd())
+
+assert False
+
 from lzero.entry.eval_iris import eval_iris
 import numpy as np
 import wandb
 import sys
 
 import psutil
-import os
+
 from zoo.atari.config.atari_iris_model_config import get_configs, get_model_path_from_env_id
 
 process = psutil.Process(os.getpid())
@@ -43,8 +51,6 @@ if __name__ == "__main__":
         env_id = "BreakoutNoFrameskip-v4"
         model_path = get_model_path_from_env_id(env_id)
 
-    print(f"Running evaluation for environment {env_id} with seed {seed} and model path {model_path}")
-    assert False
     main_config, create_config = get_configs(env_id)
 
     # num_episodes_each_seed is the number of episodes to run for each seed.
@@ -105,3 +111,6 @@ if __name__ == "__main__":
     print(f"For seeds {seeds}, the mean returns are {returns_mean_seeds}, and the returns are {returns_seeds}.")
     print("Across all seeds, the mean reward is:", returns_mean_seeds.mean())
     print("=" * 20)
+
+    print(f"Running evaluation for environment {env_id} with seed {seed} and model path {model_path}")
+    assert False

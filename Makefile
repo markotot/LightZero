@@ -60,3 +60,7 @@ apocrita_clean_runs:
 apocrita_qstat:
 	sudo expect ./scripts/apocrita_qstat.sh \
  	${APOCRITA_USER} ${APOCRITA_PASSPHRASE} ${APOCRITA_USER_PASSWORD} ${AP_PRIVATE_KEY_PATH}
+
+.SILENT: local_run
+local_run:
+	sudo bash ./scripts/run_iris.sh ${NUM_SEEDS} ${ENV_NAME}
