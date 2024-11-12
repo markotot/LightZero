@@ -1,5 +1,6 @@
 #!/bin/bash
 #$ -pe smp 8
+#$ -l h_vmem=1G
 #$ -l h_rt=1:0:0
 #$ -cwd
 #$ -j y
