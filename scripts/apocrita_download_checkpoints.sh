@@ -9,8 +9,6 @@ set GIT_BRANCH [lindex $argv 4];
 set PROJECT_NAME [lindex $argv 5];
 set WANDB_API_KEY [lindex $argv 6];
 
-set START_SEED [lindex $argv 7];
-set END_SEED [lindex $argv 8];
 set RUN_NAME [lindex $argv 9];
 
 set PULL_JOB_PARAMS "-N ${RUN_NAME}-Pull -v RUN_NAME=$RUN_NAME,GIT_BRANCH=$GIT_BRANCH,JOB_TYPE=\"pull_git\" $PROJECT_NAME/scripts/submit_experiment_job.sh"

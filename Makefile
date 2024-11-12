@@ -6,8 +6,7 @@ AP_PRIVATE_KEY_PATH = ~/Apocrita/apocrita.ssh
 APOCRITA_USER = acw549
 
 #EXPERIMENT CONFIG
-START_SEED = 1
-END_SEED = 10
+NUM_SEEDS = 10
 RUN_NAME = "iris"
 
 # Used to login to apocrita server
@@ -24,11 +23,6 @@ apocrita_clone_repo:
  	${GIT_BRANCH} ${GITHUB_USER} ${GITHUB_TOKEN} ${PROJECT_NAME}
 
 # Aggregates the results of the main.py on apocrita using apptainer
-.SILENT: apocrita_aggregate
-apocrita_aggregate:
-	sudo expect ./scripts/apocrita_aggregate.sh \
- 	${APOCRITA_USER} ${APOCRITA_PASSPHRASE} ${APOCRITA_USER_PASSWORD} ${AP_PRIVATE_KEY_PATH} \
- 	${GIT_BRANCH} ${PROJECT_NAME} ${WANDB_API_TOKEN} ${START_SEED} ${END_SEED} ${RUN_NAME}
 
 .SILENT: apocrita_build
 apocrita_build:
@@ -41,13 +35,19 @@ apocrita_build:
 apocrita_run:
 	sudo expect ./scripts/apocrita_run.sh \
  	${APOCRITA_USER} ${APOCRITA_PASSPHRASE} ${APOCRITA_USER_PASSWORD} ${AP_PRIVATE_KEY_PATH} \
- 	${GIT_BRANCH} ${PROJECT_NAME} ${WANDB_API_TOKEN} ${START_SEED} ${END_SEED} ${RUN_NAME}
+ 	${GIT_BRANCH} ${PROJECT_NAME} ${WANDB_API_TOKEN} ${NUM_SEEDS} ${RUN_NAME} ${ENV_NAME}
+
+.SILENT: apocrita_batch_run
+apocrita_batch_run:
+	sudo expect ./scripts/apocrita_batch_run.sh \
+ 	${APOCRITA_USER} ${APOCRITA_PASSPHRASE} ${APOCRITA_USER_PASSWORD} ${AP_PRIVATE_KEY_PATH} \
+ 	${GIT_BRANCH} ${PROJECT_NAME} ${WANDB_API_TOKEN} ${NUM_SEEDS} ${RUN_NAME}
 
  .SILENT: apocrita_download_checkpoints
 apocrita_download_checkpoints:
 	sudo expect ./scripts/apocrita_download_checkpoints.sh \
  	${APOCRITA_USER} ${APOCRITA_PASSPHRASE} ${APOCRITA_USER_PASSWORD} ${AP_PRIVATE_KEY_PATH} \
- 	${GIT_BRANCH} ${PROJECT_NAME} ${WANDB_API_TOKEN} ${START_SEED} ${END_SEED} ${RUN_NAME}
+ 	${GIT_BRANCH} ${PROJECT_NAME} ${WANDB_API_TOKEN} ${RUN_NAME}
 
 .SILENT: apocrita_clean_runs
 apocrita_clean_runs:

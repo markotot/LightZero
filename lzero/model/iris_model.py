@@ -42,6 +42,8 @@ class IrisModel(nn.Module):
         **kwargs
     ):
         super().__init__()
+        self.model_path = kwargs.get('model_path', None)
+
         self.agent, self.world_model_env = self.load_agent()
         self.true_model_hidden_state = (None, None)
 
@@ -65,7 +67,7 @@ class IrisModel(nn.Module):
         actor_critic.reset(1)
         agent = Agent(tokenizer, world_model, actor_critic).to(device)
 
-        agent.load(Path('../../../iris/checkpoints/iris/Breakout.pt'), device)
+        agent.load(Path(f"../../../{self.model_path}"), device)
 
         world_model_env = WorldModelEnv(tokenizer=agent.tokenizer, world_model=agent.world_model, device=device, env=env_fn())
         return agent, world_model_env

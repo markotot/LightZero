@@ -38,11 +38,6 @@ From: nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
 
 %runscript
 
-
-    nvidia-smi
-    echo "WANDBKEY"
-    echo $WANDB_API_KEY
-
     cd LightZero
     if [ $JOB_TYPE = "pull_git" ]; then
         git pull
@@ -50,7 +45,7 @@ From: nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
         git pull
     elif [ $JOB_TYPE = "run_experiment" ]; then
         echo "Running experiment"
-        bash scripts/run_iris.sh
+        bash scripts/run_iris.sh $NUM_SEEDS $ENV_NAME
     elif [ $JOB_TYPE = "run_playground" ]; then
         echo "Running playground"
         bash scripts/run_playground.sh

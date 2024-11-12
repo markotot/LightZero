@@ -5,8 +5,9 @@ import sys
 
 import psutil
 import os
-process = psutil.Process(os.getpid())
+from zoo.atari.config.atari_iris_model_config import get_configs, get_model_path_from_env_id
 
+process = psutil.Process(os.getpid())
 
 if __name__ == "__main__":
     """
@@ -24,10 +25,6 @@ if __name__ == "__main__":
         - returns_seeds (:obj:`np.array`): Array of all return values for each seed.
     """
 
-
-    # Importing the necessary configuration files from the atari muzero configuration in the zoo directory.
-    from zoo.atari.config.atari_iris_model_config import main_config, create_config
-
     # model_path is the path to the trained MuZero model checkpoint.
     # If no path is provided, the script will use the default model.
     model_path = None
@@ -38,6 +35,18 @@ if __name__ == "__main__":
         seed = 0
     # seeds is a list of seed values for the random number generator, used to initialize the environment.
     seeds = [seed]
+
+    if len(sys.argv) > 2:
+        env_id = sys.argv[2]
+        model_path = get_model_path_from_env_id(env_id)
+    else:
+        env_id = "BreakoutNoFrameskip-v4"
+        model_path = get_model_path_from_env_id(env_id)
+
+    print(f"Running evaluation for environment {env_id} with seed {seed} and model path {model_path}")
+    assert False
+    main_config, create_config = get_configs(env_id)
+
     # num_episodes_each_seed is the number of episodes to run for each seed.
     num_episodes_each_seed = 1
     # total_test_episodes is the total number of test episodes, calculated as the product of the number of seeds and the number of episodes per seed

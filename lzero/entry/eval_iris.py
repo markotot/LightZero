@@ -55,11 +55,8 @@ def eval_iris(
     evaluator_env.seed(cfg.seed, dynamic_seed=False)
     set_pkg_seed(cfg.seed, use_cuda=cfg.policy.cuda)
 
+    cfg.policy.model.model_path = model_path
     policy = create_policy(cfg.policy, model=model, enable_field=['learn', 'collect', 'eval'])
-
-    # load pretrained model
-    if model_path is not None:
-        policy.learn_mode.load_state_dict(torch.load(model_path, map_location=cfg.policy.device))
 
     # Create worker components: learner, collector, evaluator, replay buffer, commander.
     tb_logger = SummaryWriter(os.path.join('./{}/log/'.format(cfg.exp_name), 'serial'))
