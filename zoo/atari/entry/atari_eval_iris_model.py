@@ -1,10 +1,5 @@
 import sys
 import os
-print(sys.path)
-print(sys.executable)
-print(os.getcwd())
-
-assert False
 
 
 from lzero.entry.eval_iris import eval_iris

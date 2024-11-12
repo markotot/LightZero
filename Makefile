@@ -29,26 +29,26 @@ apocrita_clone_repo:
 apocrita_build:
 	sudo expect ./scripts/apocrita_build.sh \
  	${APOCRITA_USER} ${APOCRITA_PASSPHRASE} ${APOCRITA_USER_PASSWORD} ${AP_PRIVATE_KEY_PATH} \
- 	${GIT_BRANCH} ${PROJECT_NAME} ${WANDB_API_TOKEN}
+ 	${GIT_BRANCH} ${PROJECT_NAME} ${WANDB_API_KEY}
 
 # Builds and runs the main.py on apocrita using apptainer
 .SILENT: apocrita_run
 apocrita_run:
 	sudo expect ./scripts/apocrita_run.sh \
  	${APOCRITA_USER} ${APOCRITA_PASSPHRASE} ${APOCRITA_USER_PASSWORD} ${AP_PRIVATE_KEY_PATH} \
- 	${GIT_BRANCH} ${PROJECT_NAME} ${WANDB_API_TOKEN} ${NUM_SEEDS} ${RUN_NAME} ${ENV_NAME}
+ 	${GIT_BRANCH} ${PROJECT_NAME} ${WANDB_API_KEY} ${NUM_SEEDS} ${RUN_NAME} ${ENV_NAME}
 
 .SILENT: apocrita_batch_run
 apocrita_batch_run:
 	sudo expect ./scripts/apocrita_batch_run.sh \
  	${APOCRITA_USER} ${APOCRITA_PASSPHRASE} ${APOCRITA_USER_PASSWORD} ${AP_PRIVATE_KEY_PATH} \
- 	${GIT_BRANCH} ${PROJECT_NAME} ${WANDB_API_TOKEN} ${NUM_SEEDS} ${RUN_NAME}
+ 	${GIT_BRANCH} ${PROJECT_NAME} ${WANDB_API_KEY} ${NUM_SEEDS} ${RUN_NAME}
 
  .SILENT: apocrita_download_checkpoints
 apocrita_download_checkpoints:
 	sudo expect ./scripts/apocrita_download_checkpoints.sh \
  	${APOCRITA_USER} ${APOCRITA_PASSPHRASE} ${APOCRITA_USER_PASSWORD} ${AP_PRIVATE_KEY_PATH} \
- 	${GIT_BRANCH} ${PROJECT_NAME} ${WANDB_API_TOKEN} ${RUN_NAME}
+ 	${GIT_BRANCH} ${PROJECT_NAME} ${WANDB_API_KEY} ${RUN_NAME}
 
 .SILENT: apocrita_clean_runs
 apocrita_clean_runs:
@@ -63,4 +63,4 @@ apocrita_qstat:
 
 .SILENT: local_run
 local_run:
-	sudo bash ./scripts/run_iris_local.sh ${NUM_SEEDS} ${ENV_NAME}
+	sudo bash ./scripts/run_iris_local.sh ${NUM_SEEDS} ${ENV_NAME} ${WANDB_API_KEY}
