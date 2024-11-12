@@ -1,5 +1,12 @@
 import sys
 import os
+print(sys.path)
+print(sys.executable)
+print(os.getcwd())
+
+# To print all environment variables
+for key, value in os.environ.items():
+    print(f"{key}: {value}")
 
 
 from lzero.entry.eval_iris import eval_iris
