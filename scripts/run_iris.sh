@@ -1,12 +1,15 @@
 # Description: Run the evaluation of the Iris model on the Atari environment
 
-python3 --version
+
+
+
 cd zoo/atari/entry/
 NUM_SEEDS=$1
 ENV_NAME=$2
 WANDB_API_KEY=$3
-
 wandb login $WANDB_API_KEY
+
+export PYTHONPATH="/data/home/acw549/LightZero:$PYTHONPATH"
 
 echo "Evaluating Iris model on $NUM_SEEDS seeds on environment $ENV_NAME"
 
