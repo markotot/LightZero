@@ -8,5 +8,7 @@
 
 module load python/3.10.14
 
+# Replace the following line with a program or command
 APPTAINERENV_NSLOTS=${NSLOTS}
-apptainer run --nv --env-file myenvs --env "JOB_TYPE=\"pull_git\"" containers/iris.sif
+
+apptainer run --nv --env-file myenvs --env "JOB_TYPE=$JOB_TYPE" containers/iris.sif
