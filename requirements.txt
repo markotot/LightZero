@@ -12,3 +12,5 @@ pooltool-billiards>=0.3.1
 line_profiler
 wandb
 huggingface-hub>=0.26.2
+pyecharts>=2.0.6
+transformers>=4.45.1
