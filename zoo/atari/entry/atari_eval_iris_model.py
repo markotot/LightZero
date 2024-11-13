@@ -49,7 +49,7 @@ if __name__ == "__main__":
     seeds = [seed]
 
     if len(sys.argv) > 2:
-        env_id = sys.argv[2]
+        env_id = "BreakoutNoFrameskip-v4"
         model_path = get_model_path_from_env_id(env_id)
     else:
         env_id = "BreakoutNoFrameskip-v4"
