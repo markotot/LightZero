@@ -10,6 +10,7 @@ sys.path.append(original_cwd)
 print(original_cwd)
 print(sys.path)
 
+from zoo.atari.config.atari_iris_model_config import get_configs, get_model_path_from_env_id
 
 from lzero.entry.eval_iris import eval_iris
 import numpy as np
@@ -18,7 +19,6 @@ import sys
 
 import psutil
 
-from zoo.atari.config.atari_iris_model_config import get_configs, get_model_path_from_env_id
 
 process = psutil.Process(os.getpid())
 
