@@ -12,7 +12,7 @@ echo "Evaluating Iris model on $NUM_SEEDS seeds on environment $ENV_NAME"
 
 for ((i=0; i<NUM_SEEDS; i++)); do
     echo "Evaluating seed $i on environment $ENV_NAME"
-    python3 -m zoo.atari.entry.atari_eval_iris_model $i $ENV_NAME &
+    python3 -m zoo.atari.entry.atari_eval_iris_model $i $ENV_NAME
 done
 
 wait
