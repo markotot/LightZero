@@ -6,7 +6,7 @@ ENV_NAME=$2
 WANDB_API_KEY=$3
 wandb login $WANDB_API_KEY
 
-export PYTHONPATH="/data/home/acw549/LightZero:$PYTHONPATH"
+#export PYTHONPATH="/data/home/acw549/LightZero:$PYTHONPATH"
 
 echo "Evaluating Iris model on $NUM_SEEDS seeds on environment $ENV_NAME"
 
