@@ -4,8 +4,8 @@ import os
 # #print(sys.executable)
 # #print(os.getcwd())
 #
-# original_cwd = os.getcwd().split("/zoo/atari/entry")[0]
-# sys.path.append(original_cwd + "/glupost")
+original_cwd = os.getcwd().split("/zoo/atari/entry")[0]
+sys.path.append(original_cwd)
 # print(original_cwd)
 print(sys.path)
 
@@ -20,7 +20,7 @@ import psutil
 
 
 process = psutil.Process(os.getpid())
-
+print("-----------------Done importing---------------")
 if __name__ == "__main__":
     """
     Overview:
@@ -117,4 +117,4 @@ if __name__ == "__main__":
     print("=" * 20)
 
     print(f"Running evaluation for environment {env_id} with seed {seed} and model path {model_path}")
-    assert False
+
