@@ -4,10 +4,10 @@ import os
 # #print(sys.executable)
 # #print(os.getcwd())
 #
-original_cwd = os.getcwd().split("/zoo/atari/entry")[0]
-sys.path.append(original_cwd + "/iris")
-print(original_cwd)
-print(sys.path)
+# original_cwd = os.getcwd().split("/zoo/atari/entry")[0]
+# sys.path.append(original_cwd + "/iris")
+# print(original_cwd)
+# print(sys.path)
 
 from zoo.atari.config.atari_iris_model_config import get_configs, get_model_path_from_env_id
 
