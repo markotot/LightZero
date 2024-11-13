@@ -1,6 +1,6 @@
 # Description: Run the evaluation of the Iris model on the Atari environment
 
-cd LightZero/zoo/atari/entry/
+cd zoo/atari/entry/
 NUM_SEEDS=$1
 ENV_NAME=$2
 WANDB_API_KEY=$3
