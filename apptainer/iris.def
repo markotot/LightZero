@@ -35,6 +35,7 @@ From: nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
     python -m pip install --upgrade pip setuptools
     pip install -e ./LightZero
     pip install -r ./LightZero/iris/requirements.txt
+    pip install -r ./LightZero/requirements-together.txt
 
 %environment
     . /opt/conda/etc/profile.d/conda.sh
