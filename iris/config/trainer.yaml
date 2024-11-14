@@ -1,10 +1,10 @@
 defaults:
   - _self_
-  - tokenizer: default
-  - world_model: default
-  - actor_critic: default
-  - env: default
-  - datasets: default
+  - tokenizer: standard_tokenizer
+  - world_model: standard_wm
+  - actor_critic: standard_ac
+  - env: standard_env
+  - datasets: standard_dataset
 
 mode: "agent_in_world_model"
 fps: 15
