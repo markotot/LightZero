@@ -51,10 +51,13 @@ if __name__ == "__main__":
     if len(sys.argv) > 2:
         env_id = "BreakoutNoFrameskip-v4"
         model_path = get_model_path_from_env_id(env_id)
+        print("Model path provided. Using the provided model path.")
     else:
         env_id = "BreakoutNoFrameskip-v4"
         model_path = get_model_path_from_env_id(env_id)
+        print("No model path provided. Using the default model path.")
 
+    print(f"Running evaluation for environment {env_id} with seed {seed} and model path {model_path}")
     main_config, create_config = get_configs(env_id)
 
     # num_episodes_each_seed is the number of episodes to run for each seed.
