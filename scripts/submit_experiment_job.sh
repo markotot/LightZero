@@ -1,8 +1,9 @@
 #!/bin/bash
+#$ -l h_rt=240:0:0
+#$ -l h_vmem=10G
 #$ -pe smp 12
-#$ -l h_vmem=6G
 #$ -l gpu=1
-#$ -l h_rt=1:0:0
+#$ -l gpu_type=ampere
 #$ -cwd
 #$ -j y
 #$ -o job_results
