@@ -6,7 +6,7 @@ AP_PRIVATE_KEY_PATH = ~/Apocrita/apocrita.ssh
 APOCRITA_USER = acw549
 
 #EXPERIMENT CONFIG
-NUM_SEEDS = 20
+NUM_SEEDS = 10
 ENV_NAME = "BreakoutNoFrameskip-v4"
 RUN_NAME = "iris"
 
