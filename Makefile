@@ -7,7 +7,7 @@ APOCRITA_USER = acw549
 
 #EXPERIMENT CONFIG
 NUM_SEEDS = 5
-ENV_NAME = "BreakoutNoFrameskip-v4"
+ENV_NAME = "MsPacmanNoFrameskip-v4"
 RUN_NAME = "iris"
 
 # Used to login to apocrita server
