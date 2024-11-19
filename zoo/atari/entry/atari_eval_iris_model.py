@@ -53,7 +53,7 @@ if __name__ == "__main__":
         model_path = get_model_path_from_env_id(env_id)
         print("Model path provided. Using the provided model path.")
     else:
-        env_id = "BreakoutNoFrameskip-v4"
+        env_id = "MsPacmanNoFrameskip-v4"
         model_path = get_model_path_from_env_id(env_id)
         print("No model path provided. Using the default model path.")
 

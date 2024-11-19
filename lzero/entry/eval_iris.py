@@ -54,6 +54,7 @@ def eval_iris(
     set_pkg_seed(cfg.seed, use_cuda=cfg.policy.cuda)
 
     cfg.policy.model.model_path = model_path
+    cfg.policy.model.env_id = cfg.env.env_id
     policy = create_policy(cfg.policy, model=model, enable_field=['learn', 'collect', 'eval'])
 
     # Create worker components: learner, collector, evaluator, replay buffer, commander.

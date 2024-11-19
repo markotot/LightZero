@@ -42,7 +42,9 @@ class IrisModel(nn.Module):
         **kwargs
     ):
         super().__init__()
+
         self.model_path = kwargs.get('model_path', None)
+        self.env_id = kwargs.get('env_id', None)
 
         self.agent, self.world_model_env = self.load_agent()
         self.true_model_hidden_state = (None, None)
@@ -55,6 +57,7 @@ class IrisModel(nn.Module):
         device = torch.device(cfg.common.device)
         assert cfg.mode in ('episode_replay', 'agent_in_env', 'agent_in_world_model', 'play_in_world_model')
 
+        cfg.env.test.id = self.env_id # override iris config to the LightZero config
         env_fn = partial(instantiate, config=cfg.env.test)
         test_env = SingleProcessEnv(env_fn)
 
