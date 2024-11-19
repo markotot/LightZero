@@ -49,7 +49,7 @@ if __name__ == "__main__":
     seeds = [seed]
 
     if len(sys.argv) > 2:
-        env_id = "BreakoutNoFrameskip-v4"
+        env_id = sys.argv[2]
         model_path = get_model_path_from_env_id(env_id)
         print("Model path provided. Using the provided model path.")
     else:
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     main_config.env.render_mode_human = False
 
     # A boolean flag indicating whether to save the video of the environment.
-    main_config.env.save_replay = True
+    main_config.env.save_replay = False
     # The path where the recorded video will be saved.
     main_config.env.replay_path = './video'
     # The maximum number of steps for each episode during evaluation. This may need to be adjusted based on the specific characteristics of the environment.
