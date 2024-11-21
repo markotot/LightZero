@@ -873,7 +873,6 @@ class IrisPolicy(Policy):
                 policy_logits = policy_logits.detach().cpu().numpy().tolist()  # list shape（B, A）
                 ac_action = np.argmax(policy_logits)
 
-
             legal_actions = [[i for i, x in enumerate(action_mask[j]) if x == 1] for j in range(active_eval_env_num)]
             if self._cfg.mcts_ctree:
                 # cpp mcts_tree
@@ -895,17 +894,22 @@ class IrisPolicy(Policy):
 
             batch_action = []
             for i, env_id in enumerate(ready_env_id):
-                distributions, value = roots_visit_count_distributions[i], roots_values[i]
-                # NOTE: Only legal actions possess visit counts, so the ``action_index_in_legal_action_set`` represents
-                # the index within the legal action set, rather than the index in the entire action set.
-                #  Setting deterministic=True implies choosing the action with the highest value (argmax) rather than
-                # sampling during the evaluation phase.
-                action_index_in_legal_action_set, visit_count_distribution_entropy = select_action(
-                    distributions, temperature=1, deterministic=True
-                )
-                # NOTE: Convert the ``action_index_in_legal_action_set`` to the corresponding ``action`` in the
-                # entire action set.
-                action = np.where(action_mask[i] == 1.0)[0][action_index_in_legal_action_set]
+                if self._cfg.num_simulations == 0:
+                    action = ac_action
+                    distributions, value = roots_visit_count_distributions[i], roots_values[i]
+                    visit_count_distribution_entropy = 0
+                else:
+                    distributions, value = roots_visit_count_distributions[i], roots_values[i]
+                    # NOTE: Only legal actions possess visit counts, so the ``action_index_in_legal_action_set`` represents
+                    # the index within the legal action set, rather than the index in the entire action set.
+                    #  Setting deterministic=True implies choosing the action with the highest value (argmax) rather than
+                    # sampling during the evaluation phase.
+                    action_index_in_legal_action_set, visit_count_distribution_entropy = select_action(
+                        distributions, temperature=1, deterministic=True
+                    )
+                    # NOTE: Convert the ``action_index_in_legal_action_set`` to the corresponding ``action`` in the
+                    # entire action set.
+                    action = np.where(action_mask[i] == 1.0)[0][action_index_in_legal_action_set]
 
                 output[env_id] = {
                     'action': action,
