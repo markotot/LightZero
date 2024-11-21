@@ -6,8 +6,8 @@ AP_PRIVATE_KEY_PATH = ~/Apocrita/apocrita.ssh
 APOCRITA_USER = acw549
 
 #EXPERIMENT CONFIG
-START_SEED = 1
-END_SEED = 2
+START_SEED = 2
+END_SEED = 3
 ENV_NAME = "MsPacman" # set environment name
 FULL_ENV_NAME := $(addsuffix NoFrameskip-v4,${ENV_NAME}) # add NoFrameskip-v4 to the environment name for openai gym
 RUN_NAME = "iris"
