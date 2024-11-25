@@ -894,7 +894,7 @@ class IrisPolicy(Policy):
             roots_visit_count_distributions = roots.get_distributions()
             roots_values = roots.get_values()  # shape: {list: batch_size}
 
-            roots.store_mcts_tree(step = self.step)
+            # roots.store_mcts_tree(step = self.step)
             batch_action = []
             for i, env_id in enumerate(ready_env_id):
                 if self._cfg.num_simulations == 0:
