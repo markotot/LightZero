@@ -271,8 +271,6 @@ class IrisEvaluator(ISerialEvaluator):
                 # ----------------------------- ONE ENVIRONMENT STEP ---------------------------------------------------
                 while not eval_monitor.is_finished():
 
-
-
                     # Get current ready env obs.
                     obs = self._env.ready_obs
                     new_available_env_id = set(obs.keys()).difference(ready_env_id)

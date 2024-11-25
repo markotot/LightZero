@@ -11,6 +11,7 @@ import torch
 from iris.src.models.kv_caching import KeysValues
 from .minimax import MinMaxStats
 
+import pickle
 import psutil
 import os
 
@@ -28,6 +29,7 @@ class Node:
                  legal_actions: List = None,
                  action_space_size: int = 9,
                  parent = None,
+                 observation = None,
                  model_hidden_state: Tuple[np.array, np.array] = None,
                  kv_cache = None) -> None:
         """
@@ -55,6 +57,7 @@ class Node:
         self.reward = 0
         self.value_prefix = 0.0
 
+        self.observation = observation
         self.children = {}
         self.children_index = []
         self.simulation_index = 0
@@ -213,6 +216,32 @@ class Node:
 
         return kv_caches.reverse()
 
+
+    def node_without_parent(self, step: int):
+        with open(f'node_{step}.pkl', 'wb') as f:
+            pickle.dump(self, f)
+
+class PickleNode:
+    def __init__(self, node: Node):
+        self.prior = node.prior
+        self.legal_actions = node.legal_actions
+        self.action_space_size = node.action_space_size
+        self.model_hidden_state = node.model_hidden_state
+        self.kv_cache = node.kv_cache
+        self.visit_count = node.visit_count
+        self.value_sum = node.value_sum
+        self.best_action = node.best_action
+        self.to_play = node.to_play
+        self.reward = node.reward
+        self.value_prefix = node.value_prefix
+        self.children = node.children
+        self.children_index = node.children_index
+        self.simulation_index = node.simulation_index
+        self.batch_index = node.batch_index
+
+
+
+
 class Roots:
     """
     Overview:
@@ -222,7 +251,7 @@ class Roots:
         ``get_distributions``, ``get_values``
     """
 
-    def __init__(self, root_num: int, legal_actions_list: List, model_hidden_state: Tuple[np.array, np.array]) -> None:
+    def __init__(self, root_num: int, legal_actions_list: List, model_hidden_state: Tuple[np.array, np.array], observation: np.array) -> None:
         """
         Overview:
             Initializes an instance of the Roots class with the specified number of roots and legal actions.
@@ -237,9 +266,9 @@ class Roots:
         self.roots = []
         for i in range(self.root_num):
             if isinstance(legal_actions_list, list):
-                self.roots.append(Node(0, legal_actions_list[i], model_hidden_state=model_hidden_state))
+                self.roots.append(Node(0, legal_actions_list[i], model_hidden_state=model_hidden_state, observation=observation))
             else:
-                self.roots.append(Node(0, np.arange(legal_actions_list), model_hidden_state=model_hidden_state))
+                self.roots.append(Node(0, np.arange(legal_actions_list), model_hidden_state=model_hidden_state, observation=observation))
 
     def prepare(
             self,
@@ -330,6 +359,15 @@ class Roots:
             values.append(self.roots[i].value)
         return values
 
+    def store_mcts_tree(self, step: int) -> None:
+        """
+        Overview:
+            Store the pickle file of the MCTS tree.
+        """
+        with open(f'mcts_tree_{step}.pkl', 'wb') as f:
+            pickle.dump(self, f)
+
+
 
 class SearchResults:
     """
@@ -354,6 +392,8 @@ class SearchResults:
         self.last_actions = []
         self.search_lens = []
         self.hidden_states = []
+        self.observations = []
+        self.key_value_caches = []
 
 
 def select_child(
@@ -481,6 +521,7 @@ def batch_traverse(
     results.last_actions = [None for _ in range(results.num)]
     results.hidden_states = [None for _ in range(results.num)]
     results.key_values_cache = [None for _ in range(results.num)]
+    results.observations = [None for _ in range(results.num)]
     results.nodes = [None for _ in range(results.num)]
     results.latent_state_index_in_search_path = [None for _ in range(results.num)]
     results.latent_state_index_in_batch = [None for _ in range(results.num)]
@@ -530,6 +571,7 @@ def batch_traverse(
 
             results.hidden_states[i] = parent.model_hidden_state
             results.key_values_cache[i] = parent.kv_cache
+            results.observations[i] = parent.observation
             results.latent_state_index_in_search_path[i] = parent.simulation_index
             results.latent_state_index_in_batch[i] = parent.batch_index
             results.last_actions[i] = last_action
@@ -538,7 +580,7 @@ def batch_traverse(
             results.nodes[i] = node
 
     # print(f'env {i} one simulation done!')
-    return results.latent_state_index_in_search_path, results.latent_state_index_in_batch, results.last_actions, virtual_to_play, results.hidden_states, results.key_values_cache
+    return results.observations, results.last_actions, virtual_to_play, results.hidden_states, results.key_values_cache
 
 
 def backpropagate(
@@ -597,6 +639,7 @@ def backpropagate(
 
 def batch_backpropagate(
         simulation_index: int,
+        observation: np.array,
         model_hidden_state: Tuple[torch.tensor, torch.tensor],
         kv_cache: Tuple[KeysValues],
         discount_factor: float,
@@ -640,6 +683,7 @@ def batch_backpropagate(
                                     )
         results.nodes[i].model_hidden_state = model_hidden_state
         results.nodes[i].kv_cache = kv_cache
+        results.nodes[i].observation = observation
         # ****** backpropagate ******
         if to_play is None:
             backpropagate(results.search_paths[i], min_max_stats_lst.stats_lst[i], 0, values[i], discount_factor)

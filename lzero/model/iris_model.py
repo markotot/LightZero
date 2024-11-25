@@ -115,7 +115,7 @@ class IrisModel(nn.Module):
             value=value, #TODO: get real value, maybe from AC model?
             reward=torch.from_numpy(reward),
             policy_logits=policy_logits,
-            latent_state=next_obs,
+            observation=next_obs,
             hidden_state=hidden_state,
         )
 

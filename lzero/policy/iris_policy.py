@@ -826,6 +826,8 @@ class IrisPolicy(Policy):
             self.last_batch_obs = torch.zeros([3, self._cfg.model.observation_shape[0], 64, 64]).to(self._cfg.device)
             self.last_batch_action = [-1 for _ in range(3)]
 
+        self.step = 0
+
     def _forward_eval(self, data: torch.Tensor, action_mask: list, to_play: int = -1,
                       ready_env_id: np.array = None, ) -> Dict:
         """
@@ -868,7 +870,7 @@ class IrisPolicy(Policy):
             if not self._eval_model.training:
                 # if not in training, obtain the scalars of the value/reward
                 predicted_values = values.detach().cpu().numpy()  # shape（B, 1）
-                obs_roots = data.detach().cpu().numpy()
+                initial_observation = data.detach().cpu().numpy()
                 policy_entropy = Categorical(logits=policy_logits).entropy().detach().cpu().numpy()
                 policy_logits = policy_logits.detach().cpu().numpy().tolist()  # list shape（B, A）
                 ac_action = np.argmax(policy_logits)
@@ -879,19 +881,20 @@ class IrisPolicy(Policy):
                 roots = MCTSCtree.roots(active_eval_env_num, legal_actions)
             else:
                 # python mcts_tree
-                roots = MCTSPtree.roots(active_eval_env_num, legal_actions, model_hidden_state=initial_hidden_state)
+                roots = MCTSPtree.roots(active_eval_env_num, legal_actions, model_hidden_state=initial_hidden_state, observation=initial_observation)
 
             roots.prepare_no_noise(rewards=reward_roots, policies=policy_logits, to_play=to_play)
 
             # print(f"Memory before search: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
-            self._mcts_eval.search(roots, self._eval_model, obs_roots, to_play)
+            self._mcts_eval.search(roots, self._eval_model, to_play)
             # print(f"Memory after search: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
             # list of list, shape: ``{list: batch_size} -> {list: action_space_size}``
             roots_visit_count_distributions = roots.get_distributions()
             roots_values = roots.get_values()  # shape: {list: batch_size}
 
+            roots.store_mcts_tree(step = self.step)
             batch_action = []
             for i, env_id in enumerate(ready_env_id):
                 if self._cfg.num_simulations == 0:
@@ -928,6 +931,7 @@ class IrisPolicy(Policy):
                 self.last_batch_obs = data
                 self.last_batch_action = batch_action
         self._eval_model.agent.set_model_hidden_state(hidden_state)
+        self.step += 1
         return output
 
     def _reset_collect(self, data_id: Optional[List[int]] = None) -> None:

@@ -57,7 +57,7 @@ class IrisNetworkOutput:
     value: torch.Tensor
     reward: torch.Tensor
     policy_logits: torch.Tensor
-    latent_state: torch.Tensor
+    observation: torch.Tensor
     hidden_state: Tuple[torch.Tensor, torch.Tensor]
 
 class SimNorm(nn.Module):
