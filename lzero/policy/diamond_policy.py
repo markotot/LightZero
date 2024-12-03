@@ -9,9 +9,12 @@ from ding.model import model_wrap
 from ding.policy.base_policy import Policy
 from ding.torch_utils import to_tensor
 from ding.utils import POLICY_REGISTRY
+from matplotlib import pyplot as plt
+from triton.language import dtype
+
 from lzero.entry.utils import initialize_zeros_batch
-from lzero.mcts.tree_search.iris_mcts_ctree import IrisMCTSTree as MCTSCtree
-from lzero.mcts.tree_search.iris_mcts_ptree import IrisMCTSPtree as MCTSPtree
+from lzero.mcts.tree_search.diamond_mcts_ctree import DiamondMCTSTree as MCTSCtree
+from lzero.mcts.tree_search.diamond_mcts_ptree import DiamondMCTSPtree as MCTSPtree
 from lzero.model import ImageTransforms
 from lzero.model.utils import cal_dormant_ratio
 from lzero.policy import scalar_transform, InverseScalarTransform, cross_entropy_loss, phi_transform, \
@@ -23,8 +26,11 @@ from torch.nn import L1Loss
 import psutil
 import os
 
-@POLICY_REGISTRY.register('iris')
-class IrisPolicy(Policy):
+from zoo.atari.entry.tree_visualization import plot_images, print_buffers
+
+
+@POLICY_REGISTRY.register('diamond')
+class DiamondPolicy(Policy):
     """
     Overview:
         if self._cfg.model.model_type in ["conv", "mlp"]:
@@ -40,7 +46,7 @@ class IrisPolicy(Policy):
     config = dict(
         model=dict(
             # (str) The model type. For 1-dimensional vector obs, we use mlp model. For the image obs, we use conv model.
-            model_type='iris',  # options={'mlp', 'conv'}
+            model_type='diamond',  # options={'mlp', 'conv'}
             # (bool) If True, the action space of the environment is continuous, otherwise discrete.
             continuous_action_space=False,
             # (tuple) The stacked obs shape.
@@ -247,7 +253,7 @@ class IrisPolicy(Policy):
             by import_names path. For MuZero, ``lzero.model.muzero_model.MuZeroModel``
         """
 
-        return 'IrisModel', ['lzero.model.iris_model']
+        return 'DiamondModel', ['lzero.model.diamond_model']
 
 
     def _init_learn(self) -> None:
@@ -818,52 +824,31 @@ class IrisPolicy(Policy):
             Evaluate mode init method. Called by ``self.__init__``. Initialize the eval model and MCTS utils.
         """
         self._eval_model = self._model
-        # if self._cfg.mcts_ctree:
-        #     self._mcts_eval = MCTSCtree(self._cfg)
-        # else:
         self._mcts_eval = MCTSPtree(self._cfg)
-        if self._cfg.model.model_type == 'conv_context':
-            self.last_batch_obs = torch.zeros([3, self._cfg.model.observation_shape[0], 64, 64]).to(self._cfg.device)
-            self.last_batch_action = [-1 for _ in range(3)]
+
+        self.obs_buffer = torch.zeros([4, self._cfg.model.observation_shape[0], 64, 64], device=self._cfg.device)
+        self.act_buffer = torch.zeros([1, 4], dtype=torch.int64, device=self._cfg.device)
 
         self.step = 0
+        self.ac_hidden_state = None
+        self.rew_end_hidden_state = None
 
     def _forward_eval(self, data: torch.Tensor, action_mask: list, to_play: int = -1,
                       ready_env_id: np.array = None, ) -> Dict:
-        """
-        Overview:
-            The forward function for evaluating the current policy in eval mode. Use model to execute MCTS search.
-            Choosing the action with the highest value (argmax) rather than sampling during the eval mode.
-        Arguments:
-            - data (:obj:`torch.Tensor`): The input data, i.e. the observation.
-            - action_mask (:obj:`list`): The action mask, i.e. the action that cannot be selected.
-            - to_play (:obj:`int`): The player to play.
-            - ready_env_id (:obj:`list`): The id of the env that is ready to collect.
-        Shape:
-            - data (:obj:`torch.Tensor`):
-                - For Atari, :math:`(N, C*S, H, W)`, where N is the number of collect_env, C is the number of channels, \
-                    S is the number of stacked frames, H is the height of the image, W is the width of the image.
-                - For lunarlander, :math:`(N, O)`, where N is the number of collect_env, O is the observation space size.
-            - action_mask: :math:`(N, action_space_size)`, where N is the number of collect_env.
-            - to_play: :math:`(N, 1)`, where N is the number of collect_env.
-            - ready_env_id: None
-        Returns:
-            - output (:obj:`Dict[int, Any]`): Dict type data, the keys including ``action``, ``distributions``, \
-                ``visit_count_distribution_entropy``, ``value``, ``pred_value``, ``policy_logits``.
-        """
+
         gc.collect()
-        #self._eval_model = torch.compile(self._eval_model, mode='default')
         self._eval_model.eval()
         active_eval_env_num = data.shape[0]
         if ready_env_id is None:
             ready_env_id = np.arange(active_eval_env_num)
         output = {i: None for i in ready_env_id}
 
+        # Data comes in range [0, 1], convert to [-1, 1]
+        data = data * 2 - 1
 
         with torch.no_grad():
             if self._cfg.model.model_type in ["conv", "mlp"]:
-                initial_hidden_state = self._eval_model.agent.get_model_hidden_state() #TODO: Is this correct, shouldn't we take the root node ac hidden state
-                policy_logits, values, hidden_state = self._eval_model.predict(obs=data, model_hidden_state=initial_hidden_state)
+                policy_logits, values, hidden_state = self._eval_model.predict(obs=data, ac_hidden_state=self.ac_hidden_state)
                 batch_size = data.size(0)
                 reward_roots =  [0. for _ in range(batch_size)]
 
@@ -876,12 +861,15 @@ class IrisPolicy(Policy):
                 ac_action = np.argmax(policy_logits)
 
             legal_actions = [[i for i, x in enumerate(action_mask[j]) if x == 1] for j in range(active_eval_env_num)]
-            if self._cfg.mcts_ctree:
-                # cpp mcts_tree
-                roots = MCTSCtree.roots(active_eval_env_num, legal_actions)
-            else:
-                # python mcts_tree
-                roots = MCTSPtree.roots(active_eval_env_num, legal_actions, model_hidden_state=initial_hidden_state, observation=initial_observation)
+
+            roots = MCTSPtree.roots(active_eval_env_num,
+                                    legal_actions,
+                                    ac_hidden_state=self.ac_hidden_state,
+                                    rew_end_hidden_state=self.rew_end_hidden_state,
+                                    obs_buffer=self.obs_buffer,
+                                    act_buffer=self.act_buffer,
+                                    observation=initial_observation
+                                    )
 
             roots.prepare_no_noise(rewards=reward_roots, policies=policy_logits, to_play=to_play)
 
@@ -897,10 +885,13 @@ class IrisPolicy(Policy):
             roots.store_mcts_tree(step = self.step)
             batch_action = []
             for i, env_id in enumerate(ready_env_id):
-                if self._cfg.num_simulations == 0:
+                if self._cfg.num_simulations == 0 or self.step < 4:
                     action = ac_action
                     distributions, value = roots_visit_count_distributions[i], roots_values[i]
                     visit_count_distribution_entropy = 0
+                    self.ac_hidden_state = hidden_state
+                    if self.step < 4:
+                        self.obs_buffer[self.step] = data
                 else:
                     distributions, value = roots_visit_count_distributions[i], roots_values[i]
                     # NOTE: Only legal actions possess visit counts, so the ``action_index_in_legal_action_set`` represents
@@ -913,6 +904,11 @@ class IrisPolicy(Policy):
                     # NOTE: Convert the ``action_index_in_legal_action_set`` to the corresponding ``action`` in the
                     # entire action set.
                     action = np.where(action_mask[i] == 1.0)[0][action_index_in_legal_action_set]
+                    selected_child = roots.roots[i].children[action_index_in_legal_action_set]
+                    self.ac_hidden_state = selected_child.ac_hidden_state
+                    self.rew_end_hidden_state = selected_child.rew_end_hidden_state
+                    self.obs_buffer = selected_child.obs_buffer
+                    self.act_buffer = selected_child.act_buffer
 
                 output[env_id] = {
                     'action': action,
@@ -930,9 +926,12 @@ class IrisPolicy(Policy):
             if self._cfg.model.model_type in ["conv_context"]:
                 self.last_batch_obs = data
                 self.last_batch_action = batch_action
-        self._eval_model.agent.set_model_hidden_state(hidden_state) # TODO: This isn't the correct hidden state, as MCTS action is not the same as Policy action
+        #self._eval_model.agent.set_model_hidden_state(hidden_state) # TODO: this isn't the correct hidden state
+
         self.step += 1
+        #print_buffers(self.obs_buffer, self.step)
         return output
+
 
     def _reset_collect(self, data_id: Optional[List[int]] = None) -> None:
         """

@@ -1,6 +1,22 @@
-from lzero.entry import eval_muzero
-import numpy as np
+import sys
+import os
 
+original_cwd = os.getcwd().split("/zoo/atari/entry")[0]
+sys.path.append(original_cwd)
+print(sys.path)
+
+from zoo.atari.config.atari_diamond_model_config import get_configs, get_model_path_from_env_id
+
+from lzero.entry.eval_diamond import eval_diamond
+import numpy as np
+import wandb
+import sys
+
+import psutil
+
+
+process = psutil.Process(os.getpid())
+print("-----------------Done importing---------------")
 if __name__ == "__main__":
     """
     Overview:
@@ -16,15 +32,30 @@ if __name__ == "__main__":
         - returns_mean_seeds (:obj:`np.array`): Array of mean return values for each seed.
         - returns_seeds (:obj:`np.array`): Array of all return values for each seed.
     """
-    # Importing the necessary configuration files from the atari muzero configuration in the zoo directory.
-    from zoo.atari.config.atari_iris_config import main_config, create_config
 
     # model_path is the path to the trained MuZero model checkpoint.
     # If no path is provided, the script will use the default model.
     model_path = None
 
+    if len(sys.argv) > 1:
+        seed = int(sys.argv[1])
+    else:
+        seed = 0
     # seeds is a list of seed values for the random number generator, used to initialize the environment.
-    seeds = [4,5,6]
+    seeds = [seed]
+
+    if len(sys.argv) > 2:
+        env_id = sys.argv[2]
+        model_path = get_model_path_from_env_id(env_id)
+        print("Model path provided. Using the provided model path.")
+    else:
+        env_id = "MsPacmanNoFrameskip-v4"
+        model_path = get_model_path_from_env_id(env_id)
+        print("No model path provided. Using the default model path.")
+
+    print(f"Running evaluation for environment {env_id} with seed {seed} and model path {model_path}")
+    main_config, create_config = get_configs(env_id)
+
     # num_episodes_each_seed is the number of episodes to run for each seed.
     num_episodes_each_seed = 1
     # total_test_episodes is the total number of test episodes, calculated as the product of the number of seeds and the number of episodes per seed
@@ -40,11 +71,11 @@ if __name__ == "__main__":
     main_config.env.render_mode_human = False
 
     # A boolean flag indicating whether to save the video of the environment.
-    main_config.env.save_replay = True
+    main_config.env.save_replay = False
     # The path where the recorded video will be saved.
     main_config.env.replay_path = './video'
     # The maximum number of steps for each episode during evaluation. This may need to be adjusted based on the specific characteristics of the environment.
-    main_config.env.eval_max_episode_steps = int(100)
+    main_config.env.eval_max_episode_steps = int(108000)
 
     # These lists will store the mean and total rewards for each seed.
     returns_mean_seeds = []
@@ -52,15 +83,26 @@ if __name__ == "__main__":
 
     # The main evaluation loop. For each seed, the MuZero model is evaluated and the mean and total rewards are recorded.
     for seed in seeds:
-        returns_mean, returns = eval_muzero(
-            [main_config, create_config],
-            seed=seed,
-            num_episodes_each_seed=num_episodes_each_seed,
-            print_seed_details=False,
-            model_path=model_path
-        )
-        returns_mean_seeds.append(returns_mean)
-        returns_seeds.append(returns)
+
+        config = {
+                "main_config": main_config,
+                "create_config": create_config,
+                "seed": seed,
+                "num_episodes_each_seed": num_episodes_each_seed,
+                "model_path": model_path
+                }
+        with wandb.init(project="iris-muzero", name="diamond-muzero-atari", config=config):
+
+            returns_mean, returns = eval_diamond(
+                [main_config, create_config],
+                seed=seed,
+                num_episodes_each_seed=num_episodes_each_seed,
+                print_seed_details=False,
+                model_path=model_path
+            )
+            returns_mean_seeds.append(returns_mean)
+            returns_seeds.append(returns)
+
 
     # Convert the list of mean and total rewards into numpy arrays for easier statistical analysis.
     returns_mean_seeds = np.array(returns_mean_seeds)
@@ -72,3 +114,6 @@ if __name__ == "__main__":
     print(f"For seeds {seeds}, the mean returns are {returns_mean_seeds}, and the returns are {returns_seeds}.")
     print("Across all seeds, the mean reward is:", returns_mean_seeds.mean())
     print("=" * 20)
+
+    print(f"Running evaluation for environment {env_id} with seed {seed} and model path {model_path}")
+

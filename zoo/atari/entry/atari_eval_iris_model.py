@@ -1,13 +1,8 @@
 import sys
 import os
-#print(sys.path)
-# #print(sys.executable)
-# #print(os.getcwd())
-#
+
 original_cwd = os.getcwd().split("/zoo/atari/entry")[0]
 sys.path.append(original_cwd)
-# print(original_cwd)
-print(sys.path)
 
 from zoo.atari.config.atari_iris_model_config import get_configs, get_model_path_from_env_id
 
@@ -53,7 +48,7 @@ if __name__ == "__main__":
         model_path = get_model_path_from_env_id(env_id)
         print("Model path provided. Using the provided model path.")
     else:
-        env_id = "MsPacmanNoFrameskip-v4"
+        env_id = "BreakoutNoFrameskip-v4"
         model_path = get_model_path_from_env_id(env_id)
         print("No model path provided. Using the default model path.")
 

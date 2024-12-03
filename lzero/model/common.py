@@ -60,6 +60,18 @@ class IrisNetworkOutput:
     observation: torch.Tensor
     hidden_state: Tuple[torch.Tensor, torch.Tensor]
 
+@dataclass
+class DiamondNetworkOutput:
+    # output format of the Iris model
+    value: torch.Tensor
+    reward: torch.Tensor
+    policy_logits: torch.Tensor
+    observation: torch.Tensor
+    ac_hidden_state: Tuple[torch.Tensor, torch.Tensor]
+    rew_end_hidden_state: Tuple[torch.Tensor, torch.Tensor]
+    obs_buffer: torch.Tensor
+    act_buffer: torch.Tensor
+
 class SimNorm(nn.Module):
 
     def __init__(self, simnorm_dim: int) -> None:

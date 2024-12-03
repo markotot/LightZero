@@ -12,8 +12,6 @@ from iris.src.models.kv_caching import KeysValues
 from .minimax import MinMaxStats
 
 import pickle
-import psutil
-import os
 
 class Node:
     """
@@ -30,8 +28,10 @@ class Node:
                  action_space_size: int = 9,
                  parent = None,
                  observation = None,
-                 model_hidden_state: Tuple[np.array, np.array] = None,
-                 kv_cache = None) -> None:
+                 ac_hidden_state: Tuple[torch.Tensor, torch.Tensor] = None,
+                 rew_end_hidden_state: Tuple[torch.Tensor, torch.Tensor] = None,
+                 obs_buffer: torch.Tensor = None,
+                 act_buffer: torch.Tensor = None) -> None:
         """
         Overview:
             Initializes a Node instance.
@@ -40,14 +40,17 @@ class Node:
             - legal_actions (:obj:`List`, optional): The list of legal actions of the node. Defaults to None.
             - action_space_size (:obj:`int`, optional): The size of the action space. Defaults to 9.
             - parent (:obj:`Node`, optional): The parent node of the current node. Defaults to None.
-            - model_hidden_state (:obj:`Any`, optional): The hidden state of the model. Defaults to None.
-            - kv_caches (:obj:`List`, optional): The list of key-value caches from the world model. Defaults to None.
+            -
         """
         self.prior = prior
         self.legal_actions = legal_actions
         self.action_space_size = action_space_size
-        self.model_hidden_state = model_hidden_state
-        self.kv_cache = kv_cache
+
+        self.ac_hidden_state = ac_hidden_state
+        self.rew_end_hidden_state = rew_end_hidden_state
+        self.obs_buffer = obs_buffer
+        self.act_buffer = act_buffer
+
         self.parent = parent
 
         self.visit_count = 0
@@ -86,7 +89,7 @@ class Node:
         policy_values = torch.softmax(torch.tensor([policy_logits[a] for a in self.legal_actions]), dim=0).tolist()
         policy = {a: policy_values[i] for i, a in enumerate(self.legal_actions)}
         for action, prior in policy.items():
-            self.children[action] = Node(prior, parent=self, model_hidden_state=-1)
+            self.children[action] = Node(prior, parent=self, ac_hidden_state=-1, rew_end_hidden_state=-1, obs_buffer=-1, act_buffer=-1)
 
     def add_exploration_noise(self, exploration_fraction: float, noises: List[float]) -> None:
         """
@@ -222,7 +225,7 @@ class PickleNode:
         self.prior = node.prior
         self.legal_actions = node.legal_actions
         self.action_space_size = node.action_space_size
-        self.model_hidden_state = node.model_hidden_state
+        self.ac_hidden_state = node.ac_hidden_state
         self.observation = node.observation
         # self.kv_cache = node.kv_cache
         self.visit_count = node.visit_count
@@ -250,7 +253,14 @@ class Roots:
         ``get_distributions``, ``get_values``
     """
 
-    def __init__(self, root_num: int, legal_actions_list: List, model_hidden_state: Tuple[np.array, np.array], observation: np.array) -> None:
+    def __init__(self,
+                 root_num: int,
+                 legal_actions_list: List,
+                 ac_hidden_state: Tuple[torch.Tensor, torch.Tensor],
+                 rew_end_hidden_state: Tuple[torch.Tensor, torch.Tensor],
+                 act_buffer: torch.Tensor,
+                 obs_buffer: torch.Tensor,
+                 observation: np.array) -> None:
         """
         Overview:
             Initializes an instance of the Roots class with the specified number of roots and legal actions.
@@ -265,9 +275,26 @@ class Roots:
         self.roots = []
         for i in range(self.root_num):
             if isinstance(legal_actions_list, list):
-                self.roots.append(Node(0, legal_actions_list[i], model_hidden_state=model_hidden_state, observation=observation))
+                node = Node(0,
+                            legal_actions_list[i],
+                            ac_hidden_state=ac_hidden_state,
+                            rew_end_hidden_state=rew_end_hidden_state,
+                            obs_buffer = obs_buffer,
+                            act_buffer = act_buffer,
+                            observation=observation
+                            )
+
+
             else:
-                self.roots.append(Node(0, np.arange(legal_actions_list), model_hidden_state=model_hidden_state, observation=observation))
+                node = Node(0,
+                            np.arange(legal_actions_list),
+                            ac_hidden_state=ac_hidden_state,
+                            rew_end_hidden_state=rew_end_hidden_state,
+                            obs_buffer=obs_buffer,
+                            act_buffer=act_buffer,
+                            observation=observation
+                )
+            self.roots.append(node)
 
     def prepare(
             self,
@@ -275,7 +302,6 @@ class Roots:
             noises: List[float],
             rewards: List[float],
             policies: List[List[float]],
-            model_hidden_state: Tuple[np.array, np.array],
             to_play: int = -1
     ) -> None:
         """
@@ -394,6 +420,12 @@ class SearchResults:
         self.observations = []
         self.key_value_caches = []
 
+        # Diamond
+        self.ac_hidden_state = []
+        self.rew_end_hidden_state = []
+        self.obs_buffer = []
+        self.act_buffer = []
+
 
 def select_child(
         root: Node, min_max_stats: MinMaxStats, pb_c_base: float, pb_c_int: float, discount_factor: float,
@@ -495,7 +527,7 @@ def batch_traverse(
         min_max_stats_lst: List[MinMaxStats],
         results: SearchResults,
         virtual_to_play: List,
-) -> Tuple[List[None], List[None], List[None], Union[list, int], Tuple[torch.Tensor, torch.Tensor]]:
+) -> tuple[list[None], list[None], list, list[None], list[None], list[None], list[None]]:
     """
     Overview:
         traverse, also called expansion. Process a batch roots at once.
@@ -518,7 +550,10 @@ def batch_traverse(
     parent_q = 0.0
     results.search_lens = [None for _ in range(results.num)]
     results.last_actions = [None for _ in range(results.num)]
-    results.hidden_states = [None for _ in range(results.num)]
+    results.ac_hidden_state = [None for _ in range(results.num)]
+    results.rew_end_hidden_state = [None for _ in range(results.num)]
+    results.obs_buffer = [None for _ in range(results.num)]
+    results.act_buffer = [None for _ in range(results.num)]
     results.key_values_cache = [None for _ in range(results.num)]
     results.observations = [None for _ in range(results.num)]
     results.nodes = [None for _ in range(results.num)]
@@ -568,8 +603,10 @@ def batch_traverse(
             # note this return the parent node of the current searched node
             parent = results.search_paths[i][len(results.search_paths[i]) - 1 - 1]
 
-            results.hidden_states[i] = parent.model_hidden_state
-            results.key_values_cache[i] = parent.kv_cache
+            results.ac_hidden_state[i] = parent.ac_hidden_state
+            results.rew_end_hidden_state[i] = parent.rew_end_hidden_state
+            results.obs_buffer[i] = parent.obs_buffer
+            results.act_buffer[i] = parent.act_buffer
             results.observations[i] = parent.observation
             results.latent_state_index_in_search_path[i] = parent.simulation_index
             results.latent_state_index_in_batch[i] = parent.batch_index
@@ -578,8 +615,7 @@ def batch_traverse(
             # while we break out the while loop, results.nodes[i] save the leaf node.
             results.nodes[i] = node
 
-    # print(f'env {i} one simulation done!')
-    return results.observations, results.last_actions, virtual_to_play, results.hidden_states, results.key_values_cache
+    return  results.observations, results.last_actions, virtual_to_play, results.ac_hidden_state, results.rew_end_hidden_state, results.obs_buffer, results.act_buffer,
 
 
 def backpropagate(
@@ -639,8 +675,10 @@ def backpropagate(
 def batch_backpropagate(
         simulation_index: int,
         observation: np.array,
-        model_hidden_state: Tuple[torch.tensor, torch.tensor],
-        kv_cache: Tuple[KeysValues],
+        ac_hidden_state: Tuple[torch.tensor, torch.tensor],
+        rew_end_hidden_state: Tuple[torch.tensor, torch.tensor],
+        obs_buffer: torch.tensor,
+        act_buffer: torch.tensor,
         discount_factor: float,
         value_prefixs: List[float],
         values: List[float],
@@ -680,8 +718,10 @@ def batch_backpropagate(
                                     reward=value_prefixs[i],
                                     policy_logits=policies[i],
                                     )
-        results.nodes[i].model_hidden_state = model_hidden_state
-        results.nodes[i].kv_cache = kv_cache
+        results.nodes[i].ac_hidden_state = ac_hidden_state
+        results.nodes[i].rew_end_hidden_state = rew_end_hidden_state
+        results.nodes[i].obs_buffer = obs_buffer
+        results.nodes[i].act_buffer = act_buffer
         results.nodes[i].observation = observation
         # ****** backpropagate ******
         if to_play is None:

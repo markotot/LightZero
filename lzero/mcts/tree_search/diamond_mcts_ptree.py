@@ -5,21 +5,22 @@ import numpy as np
 import torch
 from easydict import EasyDict
 
-import lzero.mcts.ptree.iris_ptree_mz as tree_muzero
+import lzero.mcts.ptree.diamond_ptree_mz as tree_muzero
 from lzero.mcts.ptree import MinMaxStatsList
 from lzero.policy import InverseScalarTransform, to_detach_cpu_numpy
 
 import psutil
 import os
 
+from zoo.atari.entry.tree_visualization import print_buffers
 from zoo.bsuite.config.bsuite_muzero_config import observation_shape
 
 if TYPE_CHECKING:
     import lzero.mcts.ptree.ptree_ez as ez_ptree
-    import lzero.mcts.ptree.iris_ptree_mz as mz_ptree
+    import lzero.mcts.ptree.diamond_ptree_mz as mz_ptree
 
 
-class IrisMCTSPtree(object):
+class DiamondMCTSPtree(object):
     """
     Overview:
         The Python implementation of MCTS (batch format) for MuZero.  \
@@ -79,8 +80,17 @@ class IrisMCTSPtree(object):
             self._cfg.model.support_scale, self._cfg.device, self._cfg.model.categorical_distribution
         )
 
+        self.step = 0
+
     @classmethod
-    def roots(cls: int, root_num: int, legal_actions: List[Any], model_hidden_state: Tuple[np.array, np.array], observation: np.array) -> "mz_ptree.Roots":
+    def roots(cls: int,
+              root_num: int,
+              legal_actions: List[Any],
+              ac_hidden_state: Tuple[torch.Tensor, torch.Tensor],
+              rew_end_hidden_state: Tuple[torch.Tensor, torch.Tensor],
+              obs_buffer: torch.Tensor,
+              act_buffer: torch.Tensor,
+              observation: np.array) -> "mz_ptree.Roots":
         """
         Overview:
             Initializes a batch of roots to search parallelly later.
@@ -91,7 +101,15 @@ class IrisMCTSPtree(object):
         ..note::
             The initialization is achieved by the ``Roots`` class from the ``ptree_mz`` module.
         """
-        return tree_muzero.Roots(root_num, legal_actions, model_hidden_state=model_hidden_state, observation=observation)
+        roots = tree_muzero.Roots(root_num,
+                                  legal_actions,
+                                  ac_hidden_state=ac_hidden_state,
+                                  rew_end_hidden_state=rew_end_hidden_state,
+                                  obs_buffer=obs_buffer,
+                                  act_buffer=act_buffer,
+                                  observation=observation)
+
+        return roots
 
     def search(
             self,
@@ -111,7 +129,9 @@ class IrisMCTSPtree(object):
         .. note::
             The core functions ``batch_traverse`` and ``batch_backpropagate`` are implemented in Python.
         """
+        # print("Start")
 
+        # print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
         with torch.no_grad():
             model.eval()
 
@@ -123,8 +143,8 @@ class IrisMCTSPtree(object):
             # minimax value storage
             min_max_stats_lst = MinMaxStatsList(batch_size)
             for simulation_index in range(self._cfg.num_simulations):
-
                 # In each simulation, we expanded a new node, so in one search, we have ``num_simulations`` num of nodes at most.
+
                 # prepare a result wrapper to transport results between python and c++ parts
                 results = tree_muzero.SearchResults(num=batch_size)
 
@@ -132,7 +152,7 @@ class IrisMCTSPtree(object):
                 MCTS stage 1: Selection
                     Each simulation starts from the internal root state s0, and finishes when the simulation reaches a leaf node s_l.
                 """
-                observations, last_actions, virtual_to_play_batch, hidden_states, world_model_kv_cache = tree_muzero.batch_traverse(
+                observations, last_actions, virtual_to_play_batch, ac_hidden_states, rew_end_hidden_states, obs_buffer, act_buffer = tree_muzero.batch_traverse(
                     roots, pb_c_base, pb_c_init, discount_factor, min_max_stats_lst, results, to_play_batch
                 )
 
@@ -147,7 +167,13 @@ class IrisMCTSPtree(object):
                     At the end of the simulation, the statistics along the trajectory are updated.
                 """
 
-                network_output = model.recurrent_inference(observations, last_actions, hidden_states[0], world_model_kv_cache[0])
+                network_output = model.recurrent_inference(observation=observations,
+                                                           action=last_actions,
+                                                           ac_hidden_state=ac_hidden_states[0],
+                                                           rew_end_hidden_state=rew_end_hidden_states[0],
+                                                           obs_buffer=obs_buffer[0],
+                                                           act_buffer=act_buffer[0]
+                                                           )
 
 
                 if not model.training:
@@ -163,8 +189,12 @@ class IrisMCTSPtree(object):
                             network_output.reward,
                         ]
                     )
-                model_hidden_state = model.agent.get_model_hidden_state()
-                world_model_kv_cache = model.world_model_env.get_a_copy_of_kv_cache()
+                ac_hidden_state = network_output.ac_hidden_state
+                rew_end_hidden_state = network_output.rew_end_hidden_state
+
+                act_buffer = network_output.act_buffer
+                obs_buffer = network_output.obs_buffer
+
                 value_batch = network_output.value.reshape(-1).tolist()
                 reward_batch = network_output.reward.reshape(-1).tolist()
                 policy_logits_batch = network_output.policy_logits.tolist()
@@ -177,9 +207,11 @@ class IrisMCTSPtree(object):
                 current_latent_state_index = simulation_index + 1
                 tree_muzero.batch_backpropagate(
                     simulation_index=current_latent_state_index,
-                    model_hidden_state=model_hidden_state,
+                    ac_hidden_state=ac_hidden_state,
+                    rew_end_hidden_state=rew_end_hidden_state,
+                    act_buffer=act_buffer,
+                    obs_buffer=obs_buffer,
                     observation=network_output.observation,
-                    kv_cache=world_model_kv_cache,
                     discount_factor=discount_factor,
                     value_prefixs=reward_batch,
                     values=value_batch,
@@ -188,3 +220,4 @@ class IrisMCTSPtree(object):
                     results=results,
                     to_play=virtual_to_play_batch
                 )
+        self.step += 1
