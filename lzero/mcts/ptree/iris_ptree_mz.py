@@ -12,8 +12,7 @@ from iris.src.models.kv_caching import KeysValues
 from .minimax import MinMaxStats
 
 import pickle
-import psutil
-import os
+
 
 class Node:
     """
@@ -364,7 +363,7 @@ class Roots:
             Store the pickle file of the MCTS tree.
         """
         pickled_node = PickleNode(self.roots[0])
-        with open(f'mcts/mcts_tree_{step}.pkl', 'wb') as f:
+        with open(f'/mcts/iris/mcts_tree_{step}.pkl', 'wb') as f:
             pickle.dump(pickled_node, f)
 
 

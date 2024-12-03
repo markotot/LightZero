@@ -872,11 +872,7 @@ class DiamondPolicy(Policy):
                                     )
 
             roots.prepare_no_noise(rewards=reward_roots, policies=policy_logits, to_play=to_play)
-
-            # print(f"Memory before search: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
-
             self._mcts_eval.search(roots, self._eval_model, to_play)
-            # print(f"Memory after search: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
             # list of list, shape: ``{list: batch_size} -> {list: action_space_size}``
             roots_visit_count_distributions = roots.get_distributions()

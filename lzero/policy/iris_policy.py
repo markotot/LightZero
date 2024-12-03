@@ -1,5 +1,6 @@
 import copy
 import gc
+import pickle
 from typing import List, Dict, Any, Tuple, Union, Optional
 
 import numpy as np
@@ -828,6 +829,10 @@ class IrisPolicy(Policy):
 
         self.step = 0
 
+        self.policy_actions = []
+        self.mcts_actions = []
+        self.observations = []
+
     def _forward_eval(self, data: torch.Tensor, action_mask: list, to_play: int = -1,
                       ready_env_id: np.array = None, ) -> Dict:
         """
@@ -852,12 +857,13 @@ class IrisPolicy(Policy):
                 ``visit_count_distribution_entropy``, ``value``, ``pred_value``, ``policy_logits``.
         """
         gc.collect()
-        #self._eval_model = torch.compile(self._eval_model, mode='default')
         self._eval_model.eval()
         active_eval_env_num = data.shape[0]
         if ready_env_id is None:
             ready_env_id = np.arange(active_eval_env_num)
         output = {i: None for i in ready_env_id}
+
+        self.observations.append(data.detach().cpu())
 
 
         with torch.no_grad():
@@ -876,25 +882,16 @@ class IrisPolicy(Policy):
                 ac_action = np.argmax(policy_logits)
 
             legal_actions = [[i for i, x in enumerate(action_mask[j]) if x == 1] for j in range(active_eval_env_num)]
-            if self._cfg.mcts_ctree:
-                # cpp mcts_tree
-                roots = MCTSCtree.roots(active_eval_env_num, legal_actions)
-            else:
-                # python mcts_tree
-                roots = MCTSPtree.roots(active_eval_env_num, legal_actions, model_hidden_state=initial_hidden_state, observation=initial_observation)
+
+            roots = MCTSPtree.roots(active_eval_env_num, legal_actions, model_hidden_state=initial_hidden_state, observation=initial_observation)
 
             roots.prepare_no_noise(rewards=reward_roots, policies=policy_logits, to_play=to_play)
-
-            # print(f"Memory before search: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
-
             self._mcts_eval.search(roots, self._eval_model, to_play)
-            # print(f"Memory after search: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
             # list of list, shape: ``{list: batch_size} -> {list: action_space_size}``
             roots_visit_count_distributions = roots.get_distributions()
             roots_values = roots.get_values()  # shape: {list: batch_size}
 
-            roots.store_mcts_tree(step = self.step)
             batch_action = []
             for i, env_id in enumerate(ready_env_id):
                 if self._cfg.num_simulations == 0:
@@ -925,6 +922,12 @@ class IrisPolicy(Policy):
                     'ac_action': ac_action, # argmax following policy
                     'same_action': int(ac_action == action)
                 }
+
+                self.policy_actions.append(ac_action)
+                self.mcts_actions.append(action)
+
+                self.save_data(roots)
+
                 if self._cfg.model.model_type in ["conv_context"]:
                     batch_action.append(action)
             if self._cfg.model.model_type in ["conv_context"]:
@@ -932,6 +935,9 @@ class IrisPolicy(Policy):
                 self.last_batch_action = batch_action
         self._eval_model.agent.set_model_hidden_state(hidden_state) # TODO: This isn't the correct hidden state, as MCTS action is not the same as Policy action
         self.step += 1
+
+
+
         return output
 
     def _reset_collect(self, data_id: Optional[List[int]] = None) -> None:
@@ -1046,4 +1052,15 @@ class IrisPolicy(Policy):
     def _get_train_sample(self, data):
         # be compatible with DI-engine Policy class
         pass
+
+
+    def store_data(self, roots):
+        roots.store_mcts_tree(step=self.step)  # Save the trajectories for analysis
+        with open(f'/mcts/iris/mcts_actions.pkl', 'wb') as f:
+            pickle.dump(self.mcts_actions, f)
+        with open(f'/mcts/iris/policy_actions.pkl', 'wb') as f:
+            pickle.dump(self.policy_actions, f)
+        with open(f'/mcts/iris/observations.pkl', 'wb') as f:
+            pickle.dump(self.observations, f)
+
 
