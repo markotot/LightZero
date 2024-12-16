@@ -6,6 +6,7 @@ import torch
 from easydict import EasyDict
 
 import lzero.mcts.ptree.iris_ptree_mz as tree_muzero
+from iris.src.models.kv_caching import KVCache, KeysValues
 from lzero.mcts.ptree import MinMaxStatsList
 from lzero.policy import InverseScalarTransform, to_detach_cpu_numpy
 
@@ -80,7 +81,7 @@ class IrisMCTSPtree(object):
         )
 
     @classmethod
-    def roots(cls: int, root_num: int, legal_actions: List[Any], model_hidden_state: Tuple[np.array, np.array], observation: np.array) -> "mz_ptree.Roots":
+    def roots(cls: int, root_num: int, legal_actions: List[Any], ac_hidden_state: Tuple[np.array, np.array], wm_kv_cache: KeysValues, observation: np.array) -> "mz_ptree.Roots":
         """
         Overview:
             Initializes a batch of roots to search parallelly later.
@@ -91,13 +92,13 @@ class IrisMCTSPtree(object):
         ..note::
             The initialization is achieved by the ``Roots`` class from the ``ptree_mz`` module.
         """
-        return tree_muzero.Roots(root_num, legal_actions, model_hidden_state=model_hidden_state, observation=observation)
+        return tree_muzero.Roots(root_num, legal_actions, ac_hidden_state=ac_hidden_state, wm_kv_cache=wm_kv_cache, observation=observation)
 
     def search(
             self,
             roots: Any,
             model: torch.nn.Module,
-            to_play_batch: Union[int, List[Any]] = -1
+            to_play_batch: Union[int, List[Any]] = -1,
     ) -> None:
         """
         Overview:
@@ -163,8 +164,8 @@ class IrisMCTSPtree(object):
                             network_output.reward,
                         ]
                     )
-                model_hidden_state = model.agent.get_model_hidden_state()
-                world_model_kv_cache = model.world_model_env.get_a_copy_of_kv_cache()
+                model_hidden_state = network_output.ac_hidden_state
+                world_model_kv_cache = network_output.wm_kv_cache
                 value_batch = network_output.value.reshape(-1).tolist()
                 reward_batch = network_output.reward.reshape(-1).tolist()
                 policy_logits_batch = network_output.policy_logits.tolist()

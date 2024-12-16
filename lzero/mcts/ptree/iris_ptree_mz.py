@@ -29,23 +29,13 @@ class Node:
                  action_space_size: int = 9,
                  parent = None,
                  observation = None,
-                 model_hidden_state: Tuple[np.array, np.array] = None,
+                 ac_hidden_state: Tuple[np.array, np.array] = None,
                  kv_cache = None) -> None:
-        """
-        Overview:
-            Initializes a Node instance.
-        Arguments:
-            - prior (:obj:`float`): The prior probability of the node.
-            - legal_actions (:obj:`List`, optional): The list of legal actions of the node. Defaults to None.
-            - action_space_size (:obj:`int`, optional): The size of the action space. Defaults to 9.
-            - parent (:obj:`Node`, optional): The parent node of the current node. Defaults to None.
-            - model_hidden_state (:obj:`Any`, optional): The hidden state of the model. Defaults to None.
-            - kv_caches (:obj:`List`, optional): The list of key-value caches from the world model. Defaults to None.
-        """
+
         self.prior = prior
         self.legal_actions = legal_actions
         self.action_space_size = action_space_size
-        self.model_hidden_state = model_hidden_state
+        self.ac_hidden_state = ac_hidden_state
         self.kv_cache = kv_cache
         self.parent = parent
 
@@ -85,7 +75,7 @@ class Node:
         policy_values = torch.softmax(torch.tensor([policy_logits[a] for a in self.legal_actions]), dim=0).tolist()
         policy = {a: policy_values[i] for i, a in enumerate(self.legal_actions)}
         for action, prior in policy.items():
-            self.children[action] = Node(prior, parent=self, model_hidden_state=-1)
+            self.children[action] = Node(prior, parent=self, ac_hidden_state=-1)
 
     def add_exploration_noise(self, exploration_fraction: float, noises: List[float]) -> None:
         """
@@ -204,24 +194,13 @@ class Node:
         else:
             return self.value_sum / self.visit_count
 
-    def get_previous_kv_caches(self, num_kv_caches: int):
-
-        curr_node = self
-        kv_caches = [curr_node.model_hidden_state]
-        while curr_node.parent is not None and num_kv_caches > 0:
-            curr_node = curr_node.parent
-            kv_caches.append(curr_node.model_hidden_state)
-            num_kv_caches -= 1
-
-        return kv_caches.reverse()
-
 
 class PickleNode:
     def __init__(self, node: Node):
         self.prior = node.prior
         self.legal_actions = node.legal_actions
         self.action_space_size = node.action_space_size
-        self.model_hidden_state = node.model_hidden_state
+        self.model_hidden_state = node.ac_hidden_state
         self.observation = node.observation
         # self.kv_cache = node.kv_cache
         self.visit_count = node.visit_count
@@ -249,7 +228,7 @@ class Roots:
         ``get_distributions``, ``get_values``
     """
 
-    def __init__(self, root_num: int, legal_actions_list: List, model_hidden_state: Tuple[np.array, np.array], observation: np.array) -> None:
+    def __init__(self, root_num: int, legal_actions_list: List, ac_hidden_state: Tuple[np.array, np.array], wm_kv_cache: KeysValues, observation: np.array) -> None:
         """
         Overview:
             Initializes an instance of the Roots class with the specified number of roots and legal actions.
@@ -264,9 +243,9 @@ class Roots:
         self.roots = []
         for i in range(self.root_num):
             if isinstance(legal_actions_list, list):
-                self.roots.append(Node(0, legal_actions_list[i], model_hidden_state=model_hidden_state, observation=observation))
+                self.roots.append(Node(0, legal_actions_list[i], ac_hidden_state=ac_hidden_state, observation=observation, kv_cache=wm_kv_cache))
             else:
-                self.roots.append(Node(0, np.arange(legal_actions_list), model_hidden_state=model_hidden_state, observation=observation))
+                self.roots.append(Node(0, np.arange(legal_actions_list), ac_hidden_state=ac_hidden_state, observation=observation, kv_cache=wm_kv_cache))
 
     def prepare(
             self,
@@ -363,7 +342,7 @@ class Roots:
             Store the pickle file of the MCTS tree.
         """
         pickled_node = PickleNode(self.roots[0])
-        with open(f'/mcts/iris/mcts_tree_{step}.pkl', 'wb') as f:
+        with open(f'./mcts/iris/mcts_tree_{step}.pkl', 'wb') as f:
             pickle.dump(pickled_node, f)
 
 
@@ -567,7 +546,7 @@ def batch_traverse(
             # note this return the parent node of the current searched node
             parent = results.search_paths[i][len(results.search_paths[i]) - 1 - 1]
 
-            results.hidden_states[i] = parent.model_hidden_state
+            results.hidden_states[i] = parent.ac_hidden_state
             results.key_values_cache[i] = parent.kv_cache
             results.observations[i] = parent.observation
             results.latent_state_index_in_search_path[i] = parent.simulation_index
@@ -679,7 +658,7 @@ def batch_backpropagate(
                                     reward=value_prefixs[i],
                                     policy_logits=policies[i],
                                     )
-        results.nodes[i].model_hidden_state = model_hidden_state
+        results.nodes[i].ac_hidden_state = model_hidden_state
         results.nodes[i].kv_cache = kv_cache
         results.nodes[i].observation = observation
         # ****** backpropagate ******

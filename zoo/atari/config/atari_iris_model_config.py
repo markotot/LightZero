@@ -17,8 +17,8 @@ def get_configs(env_id: str):
     # ==============================================================
     collector_env_num = 8
     n_episode = 8
-    evaluator_env_num = 3
-    num_simulations = 200
+    evaluator_env_num = 1
+    num_simulations = 10
     update_per_collect = None
     replay_ratio = 0.25
     batch_size = 256

@@ -86,6 +86,7 @@ class WorldModelEnv:
 
         obs = self.decode_obs_tokens() if should_predict_next_obs else None
         #print("KV-cache size: ", self.keys_values_wm.size)
+
         return obs, reward, done, None
 
     @torch.no_grad()

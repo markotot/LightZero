@@ -76,8 +76,13 @@ class ActorCritic(nn.Module):
         self.cx = self.cx[mask]
 
     def set_hidden_state(self, model_hidden_state: Tuple[torch.tensor, torch.tensor]):
-        self.hx = model_hidden_state[0].to(self.device)
-        self.cx = model_hidden_state[1].to(self.device)
+
+        if model_hidden_state is None:
+            self.hx = torch.zeros(1, self.lstm_dim, device=self.device) # (1, 512)
+            self.cx = torch.zeros(1, self.lstm_dim, device=self.device) # (1, 512)
+        else:
+            self.hx = model_hidden_state[0].to(self.device)
+            self.cx = model_hidden_state[1].to(self.device)
 
     def get_hidden_state(self):
         return self.hx.detach().cpu(), self.cx.detach().cpu()

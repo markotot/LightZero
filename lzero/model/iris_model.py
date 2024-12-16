@@ -94,36 +94,27 @@ class IrisModel(nn.Module):
                             model_hidden_state: Tuple[np.ndarray, np.ndarray],
                             wm_keys_values: KeysValues) -> IrisNetworkOutput:
 
-        # print("Start recurrent_inference")
-        # print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
 
         if wm_keys_values is None:
-            next_obs = self.world_model_env.reset_from_initial_observations(observation)
+            self.world_model_env.reset_from_initial_observations(observation)
         else:
             self.world_model_env.set_kv_cache(wm_keys_values)
-
-        # print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
-
 
         next_obs, reward, done, _ = self.world_model_env.step(action, should_predict_next_obs=True)
         policy_logits, value, hidden_state = self.predict(next_obs, model_hidden_state=model_hidden_state, temperature=1.0)
 
-        # print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
-
+        ac_hidden_state = (hidden_state[0].detach().cpu(), hidden_state[1].detach().cpu())
 
         output = IrisNetworkOutput(
             value=value, #TODO: get real value, maybe from AC model?
             reward=torch.from_numpy(reward),
             policy_logits=policy_logits,
             observation=next_obs,
-            hidden_state=hidden_state,
+            ac_hidden_state=ac_hidden_state,
+            wm_kv_cache=self.world_model_env.get_a_copy_of_kv_cache(),
         )
 
-        # print(f"Memory used script: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2:.2f} MB")
-        # print("End recurrent_inference")
-
         return output
-
 
     def _representation(self, observation: torch.Tensor) -> torch.Tensor:
         pass

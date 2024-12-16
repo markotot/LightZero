@@ -214,7 +214,7 @@ class Node:
         kv_caches = [curr_node.model_hidden_state]
         while curr_node.parent is not None and num_kv_caches > 0:
             curr_node = curr_node.parent
-            kv_caches.append(curr_node.model_hidden_state)
+            kv_caches.append(curr_node.ac_hidden_state)
             num_kv_caches -= 1
 
         return kv_caches.reverse()

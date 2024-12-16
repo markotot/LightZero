@@ -11,11 +11,6 @@ import numpy as np
 import wandb
 import sys
 
-import psutil
-
-
-process = psutil.Process(os.getpid())
-print("-----------------Done importing---------------")
 if __name__ == "__main__":
     """
     Overview:

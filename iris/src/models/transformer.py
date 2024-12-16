@@ -93,12 +93,14 @@ class SelfAttention(nn.Module):
         self.register_buffer('mask', causal_mask if config.attention == 'causal' else block_causal_mask)
 
     def forward(self, x: torch.Tensor, kv_cache: Optional[KVCache] = None) -> torch.Tensor:
+
         B, T, C = x.size()
         if kv_cache is not None:
             b, nh, L, c = kv_cache.shape
             assert nh == self.num_heads and b == B and c * nh == C
         else:
             L = 0
+
 
         q = self.query(x).view(B, T, self.num_heads, C // self.num_heads).transpose(1, 2)   # (B, nh, T, hs)
         k = self.key(x).view(B, T, self.num_heads, C // self.num_heads).transpose(1, 2)     # (B, nh, T, hs)
