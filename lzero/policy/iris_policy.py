@@ -392,10 +392,10 @@ class IrisPolicy(Policy):
                     self.ac_hidden_state = selected_child.ac_hidden_state
                     self.wm_kv_cache = selected_child.kv_cache
 
-                    obs = np.transpose(selected_child.observation[0], (1, 2, 0))
-                    initial_observation = np.transpose(initial_observation[0], (1, 2, 0))
+                    #obs = np.transpose(selected_child.observation[0], (1, 2, 0))
+                    #initial_observation = np.transpose(initial_observation[0], (1, 2, 0))
 
-                    plot_images([initial_observation, obs], start_step=self.step, num_steps=2, transpose=False)
+                    #plot_images([initial_observation, obs], start_step=self.step, num_steps=2, transpose=False)
 
                 output[env_id] = {
                     'action': action,
@@ -413,7 +413,7 @@ class IrisPolicy(Policy):
                 self.mcts_actions.append(action)
 
                 # Enable to turn on storing the roots locally
-                self.save_data(roots)
+                #self.save_data(roots)
 
                 if self._cfg.model.model_type in ["conv_context"]:
                     batch_action.append(action)
