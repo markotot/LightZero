@@ -53,9 +53,12 @@ def pad_images(images: np.ndarray, top=0, bottom=0, left=0, right=0, constant=0)
     return np.pad(images, ((0, 0), (top, bottom), (left, right), (0, 0)), mode="constant", constant_values=constant)
 
 
-def plot_images(images, start_step, num_steps, title=""):
+def plot_images(images, start_step, num_steps, transpose, title=""):
+
 
     images = images[:num_steps]
+    if transpose:
+        images = [np.transpose(obs, (1, 2, 0)) for obs in images]
 
     empty = np.array(images[0].copy())
     empty.fill(0)

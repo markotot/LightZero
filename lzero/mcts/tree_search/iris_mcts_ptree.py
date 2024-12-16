@@ -98,7 +98,10 @@ class IrisMCTSPtree(object):
             self,
             roots: Any,
             model: torch.nn.Module,
+            observation_seq: List[torch.Tensor] = None,
+            action_seq: List[torch.Tensor] = None,
             to_play_batch: Union[int, List[Any]] = -1,
+
     ) -> None:
         """
         Overview:
@@ -133,13 +136,18 @@ class IrisMCTSPtree(object):
                 MCTS stage 1: Selection
                     Each simulation starts from the internal root state s0, and finishes when the simulation reaches a leaf node s_l.
                 """
-                observations, last_actions, virtual_to_play_batch, hidden_states, world_model_kv_cache = tree_muzero.batch_traverse(
+                _, last_actions, virtual_to_play_batch, hidden_states, world_model_kv_cache, selected_nodes = tree_muzero.batch_traverse(
                     roots, pb_c_base, pb_c_init, discount_factor, min_max_stats_lst, results, to_play_batch
                 )
 
-                observations = torch.from_numpy(np.asarray(observations[0])).to(self._cfg.device)
-                # only for discrete action
-                last_actions = torch.from_numpy(np.asarray(last_actions)).to(self._cfg.device).long()
+                observations_to_root = selected_nodes[0].get_observations_to_root()
+                observations_to_root = [ torch.from_numpy(obs).to(self._cfg.device) for obs in observations_to_root ]
+                input_obs_seq = observation_seq + observations_to_root
+
+                actions_to_root = selected_nodes[0].get_actions_to_root()
+                actions_to_root = [ torch.tensor(a, dtype=torch.long, device=self._cfg.device) for a in actions_to_root ]
+                input_act_seq = action_seq + actions_to_root
+
                 """
                 MCTS stage 2: Expansion
                     At the final time-step l of the simulation, the next_latent_state and reward/value_prefix are computed by the dynamics function.
@@ -148,7 +156,7 @@ class IrisMCTSPtree(object):
                     At the end of the simulation, the statistics along the trajectory are updated.
                 """
 
-                network_output = model.recurrent_inference(observations, last_actions, hidden_states[0], world_model_kv_cache[0])
+                network_output = model.recurrent_inference(hidden_states[0], input_obs_seq, input_act_seq)
 
 
                 if not model.training:
@@ -165,7 +173,7 @@ class IrisMCTSPtree(object):
                         ]
                     )
                 model_hidden_state = network_output.ac_hidden_state
-                world_model_kv_cache = network_output.wm_kv_cache
+                world_model_kv_cache = None
                 value_batch = network_output.value.reshape(-1).tolist()
                 reward_batch = network_output.reward.reshape(-1).tolist()
                 policy_logits_batch = network_output.policy_logits.tolist()

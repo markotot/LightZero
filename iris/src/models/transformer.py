@@ -95,20 +95,25 @@ class SelfAttention(nn.Module):
     def forward(self, x: torch.Tensor, kv_cache: Optional[KVCache] = None) -> torch.Tensor:
 
         B, T, C = x.size()
+
         if kv_cache is not None:
             b, nh, L, c = kv_cache.shape
             assert nh == self.num_heads and b == B and c * nh == C
         else:
             L = 0
 
-
         q = self.query(x).view(B, T, self.num_heads, C // self.num_heads).transpose(1, 2)   # (B, nh, T, hs)
         k = self.key(x).view(B, T, self.num_heads, C // self.num_heads).transpose(1, 2)     # (B, nh, T, hs)
         v = self.value(x).view(B, T, self.num_heads, C // self.num_heads).transpose(1, 2)   # (B, nh, T, hs)
 
-        if kv_cache is not None:
-            kv_cache.update(k, v)
-            k, v = kv_cache.get()
+        # if kv_cache is not None:
+        #     kv_cache.update(k, v)
+        #     k, v = kv_cache.get()
+
+        # att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
+        # att = att.masked_fill(self.mask[:T, :T] == 0, float('-inf'))
+        # att = F.softmax(att, dim=-1)
+        # att = self.attn_drop(att)
 
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
         att = att.masked_fill(self.mask[L:L + T, :L + T] == 0, float('-inf'))

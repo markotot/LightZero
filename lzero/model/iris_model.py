@@ -10,6 +10,7 @@ from ding.utils import MODEL_REGISTRY
 from numpy import ndarray
 
 from iris.src.models.kv_caching import KeysValues
+from zoo.atari.entry.tree_visualization import plot_images
 from .common import MZNetworkOutput, IrisNetworkOutput
 
 from typing import Tuple, Any
@@ -89,18 +90,24 @@ class IrisModel(nn.Module):
         return policy_logits, value, hidden_state
 
     def recurrent_inference(self,
-                            observation: torch.Tensor,
-                            action: torch.Tensor,
                             model_hidden_state: Tuple[np.ndarray, np.ndarray],
-                            wm_keys_values: KeysValues) -> IrisNetworkOutput:
+                            obs_seq: torch.Tensor,
+                            action_seq: torch.Tensor) -> IrisNetworkOutput:
 
 
-        if wm_keys_values is None:
-            self.world_model_env.reset_from_initial_observations(observation)
-        else:
-            self.world_model_env.set_kv_cache(wm_keys_values)
+        # if wm_keys_values is None:
+        #     self.world_model_env.reset_from_initial_observations(observation)
+        # else:
+        #     self.world_model_env.set_kv_cache(wm_keys_values)
+        # next_obs, reward, done = None, None, None
+        # next_obs, reward, done, _ = self.world_model_env.step(action, should_predict_next_obs=True)
+        next_obs, reward, done, _ = self.world_model_env.step_v2(action_seq, obs_seq)
 
-        next_obs, reward, done, _ = self.world_model_env.step(action, should_predict_next_obs=True)
+        # env_obs = observation[0].detach().cpu().numpy()
+        last_env_obs = obs_seq[-1][0].detach().cpu().numpy()
+        wm_obs = next_obs[0].detach().cpu().numpy()
+
+        #plot_images([last_env_obs, wm_obs], start_step=0, num_steps=2, transpose=True)
         policy_logits, value, hidden_state = self.predict(next_obs, model_hidden_state=model_hidden_state, temperature=1.0)
 
         ac_hidden_state = (hidden_state[0].detach().cpu(), hidden_state[1].detach().cpu())
@@ -111,7 +118,6 @@ class IrisModel(nn.Module):
             policy_logits=policy_logits,
             observation=next_obs,
             ac_hidden_state=ac_hidden_state,
-            wm_kv_cache=self.world_model_env.get_a_copy_of_kv_cache(),
         )
 
         return output

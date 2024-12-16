@@ -361,7 +361,15 @@ class IrisPolicy(Policy):
                                     observation=initial_observation)
 
             roots.prepare_no_noise(rewards=reward_roots, policies=policy_logits, to_play=to_play)
-            self._mcts_eval.search(roots=roots, model=self._eval_model,  to_play_batch=to_play)
+
+            obs_seq = [obs.to(self._cfg.device) for obs in self.observations]
+            action_seq = [torch.tensor(a, dtype=torch.long, device=self._cfg.device) for a in self.mcts_actions]
+
+            self._mcts_eval.search(roots=roots,
+                                   model=self._eval_model,
+                                   to_play_batch=to_play,
+                                   observation_seq=obs_seq,
+                                   action_seq=action_seq)
 
             roots_visit_count_distributions = roots.get_distributions()
             roots_values = roots.get_values()
@@ -387,7 +395,7 @@ class IrisPolicy(Policy):
                     obs = np.transpose(selected_child.observation[0], (1, 2, 0))
                     initial_observation = np.transpose(initial_observation[0], (1, 2, 0))
 
-                    plot_images([initial_observation, obs], start_step=self.step, num_steps=2)
+                    plot_images([initial_observation, obs], start_step=self.step, num_steps=2, transpose=False)
 
                 output[env_id] = {
                     'action': action,

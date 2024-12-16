@@ -59,7 +59,7 @@ class IrisNetworkOutput:
     policy_logits: torch.Tensor
     observation: torch.Tensor
     ac_hidden_state: Tuple[torch.Tensor, torch.Tensor]
-    wm_kv_cache: KeysValues
+    #wm_kv_cache: KeysValues
 
 @dataclass
 class DiamondNetworkOutput:

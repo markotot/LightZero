@@ -81,9 +81,14 @@ class WorldModel(nn.Module):
     def forward(self, tokens: torch.LongTensor, past_keys_values: Optional[KeysValues] = None) -> WorldModelOutput:
 
         num_steps = tokens.size(1)  # (B, T)
-        assert num_steps <= self.config.max_tokens
-        prev_steps = 0 if past_keys_values is None else past_keys_values.size
-        sequences = self.embedder(tokens, num_steps, prev_steps) + self.pos_emb(prev_steps + torch.arange(num_steps, device=tokens.device))
+        assert num_steps <= self.config.max_tokens, f"Number of tokens {num_steps} exceeds the maximum number of tokens {self.config.max_tokens}"
+        #prev_steps = 0 if past_keys_values is None else past_keys_values.size
+        prev_steps = 0
+        if num_steps == 340:
+            print("Num steps is 340")
+        embeddings = self.embedder(tokens, num_steps, prev_steps)
+        pos_embeddings = self.pos_emb(torch.arange(num_steps, device=tokens.device) + prev_steps)
+        sequences = embeddings + pos_embeddings
 
         x = self.transformer(sequences, past_keys_values)
         #print("KV Cache shape", past_keys_values._keys_values[0].shape)

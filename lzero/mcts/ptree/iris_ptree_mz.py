@@ -171,6 +171,30 @@ class Node:
             action = int(action)
         return self.children[action]
 
+    def get_observations_to_root(self):
+
+        observations = []
+        current_node = self.parent
+        while current_node.parent is not None:
+            observations.insert(0, current_node.observation)
+            current_node = current_node.parent
+
+        return observations
+
+    def get_actions_to_root(self):
+
+        actions = []
+        current_node = self
+        while current_node.parent is not None:
+
+            for key, node in current_node.parent.children.items():
+                if node == current_node:
+                    actions.insert(0, key)
+
+            current_node = current_node.parent
+
+        return actions
+
     @property
     def expanded(self) -> bool:
         """
@@ -557,7 +581,7 @@ def batch_traverse(
             results.nodes[i] = node
 
     # print(f'env {i} one simulation done!')
-    return results.observations, results.last_actions, virtual_to_play, results.hidden_states, results.key_values_cache
+    return results.observations, results.last_actions, virtual_to_play, results.hidden_states, results.key_values_cache, results.nodes
 
 
 def backpropagate(
