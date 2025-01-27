@@ -227,13 +227,19 @@ class PickleNode:
         self.action_space_size = node.action_space_size
         self.ac_hidden_state = node.ac_hidden_state
         self.observation = node.observation
-        # self.kv_cache = node.kv_cache
+
         self.visit_count = node.visit_count
         self.value_sum = node.value_sum
         self.best_action = node.best_action
         self.to_play = node.to_play
         self.reward = node.reward
         self.value_prefix = node.value_prefix
+
+        self.rew_end_hidden_state = node.rew_end_hidden_state
+        self.obs_buffer = node.obs_buffer
+        self.act_buffer = node.act_buffer
+
+        self.children = {}
 
         self.children = {}
         for key, node in node.children.items():
@@ -390,7 +396,7 @@ class Roots:
             Store the pickle file of the MCTS tree.
         """
         pickled_node = PickleNode(self.roots[0])
-        with open(f'mcts/mcts_tree_{step}.pkl', 'wb') as f:
+        with open(f'mcts/diamond/mcts_tree_{step}.pkl', 'wb') as f:
             pickle.dump(pickled_node, f)
 
 

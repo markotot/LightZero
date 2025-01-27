@@ -310,27 +310,7 @@ class IrisPolicy(Policy):
 
     def _forward_eval(self, data: torch.Tensor, action_mask: list, to_play: int = -1,
                       ready_env_id: np.array = None, ) -> Dict:
-        """
-        Overview:
-            The forward function for evaluating the current policy in eval mode. Use model to execute MCTS search.
-            Choosing the action with the highest value (argmax) rather than sampling during the eval mode.
-        Arguments:
-            - data (:obj:`torch.Tensor`): The input data, i.e. the observation.
-            - action_mask (:obj:`list`): The action mask, i.e. the action that cannot be selected.
-            - to_play (:obj:`int`): The player to play.
-            - ready_env_id (:obj:`list`): The id of the env that is ready to collect.
-        Shape:
-            - data (:obj:`torch.Tensor`):
-                - For Atari, :math:`(N, C*S, H, W)`, where N is the number of collect_env, C is the number of channels, \
-                    S is the number of stacked frames, H is the height of the image, W is the width of the image.
-                - For lunarlander, :math:`(N, O)`, where N is the number of collect_env, O is the observation space size.
-            - action_mask: :math:`(N, action_space_size)`, where N is the number of collect_env.
-            - to_play: :math:`(N, 1)`, where N is the number of collect_env.
-            - ready_env_id: None
-        Returns:
-            - output (:obj:`Dict[int, Any]`): Dict type data, the keys including ``action``, ``distributions``, \
-                ``visit_count_distribution_entropy``, ``value``, ``pred_value``, ``policy_logits``.
-        """
+
         gc.collect()
         self._eval_model.eval()
         active_eval_env_num = data.shape[0]
@@ -394,7 +374,6 @@ class IrisPolicy(Policy):
 
                     #obs = np.transpose(selected_child.observation[0], (1, 2, 0))
                     #initial_observation = np.transpose(initial_observation[0], (1, 2, 0))
-
                     #plot_images([initial_observation, obs], start_step=self.step, num_steps=2, transpose=False)
 
                 output[env_id] = {
@@ -413,7 +392,7 @@ class IrisPolicy(Policy):
                 self.mcts_actions.append(action)
 
                 # Enable to turn on storing the roots locally
-                #self.save_data(roots)
+                self.save_data(roots)
 
                 if self._cfg.model.model_type in ["conv_context"]:
                     batch_action.append(action)

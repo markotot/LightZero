@@ -119,6 +119,18 @@ class WorldModelEnv:
         return obs, reward, done, None
 
     @torch.no_grad()
+    def vq_encoder_only(self, observations) -> None:
+
+        observations = torch.cat(observations, dim=0).to(self.device)
+        obs_tokens = self.tokenizer.encode(observations, should_preprocess=True).tokens
+
+        embedded_tokens = self.tokenizer.embedding(obs_tokens)  # (B, K, E)
+        z = rearrange(embedded_tokens, 'b (h w) e -> b e h w', h=int(np.sqrt(self.num_observations_tokens)))
+        decoded_obs = self.tokenizer.decode(z, should_postprocess=True)  # (B, C, H, W)
+        decoded_obs = torch.clamp(decoded_obs, 0, 1)
+        return decoded_obs, obs_tokens
+
+    @torch.no_grad()
     def render_batch(self) -> List[Image.Image]:
         frames = self.decode_obs_tokens().detach().cpu()
         frames = rearrange(frames, 'b c h w -> b h w c').mul(255).numpy().astype(np.uint8)
@@ -145,10 +157,3 @@ class WorldModelEnv:
         kv_cache = copy.deepcopy(kv_cache)
         kv_cache.to_device(self.device)
         self.keys_values_wm = kv_cache
-
-    # def get_a_copy_of_kv_cache(self):
-    #     x = self.keys_values_wm.to_numpy()
-    #     return x
-    #
-    # def set_kv_cache(self, kv_cache):
-    #     self.keys_values_wm.to_tensor(kv_cache, self.device)

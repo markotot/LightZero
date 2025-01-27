@@ -1,5 +1,6 @@
 import copy
 import gc
+import pickle
 from typing import List, Dict, Any, Tuple, Union, Optional
 
 import numpy as np
@@ -10,7 +11,6 @@ from ding.policy.base_policy import Policy
 from ding.torch_utils import to_tensor
 from ding.utils import POLICY_REGISTRY
 from matplotlib import pyplot as plt
-from triton.language import dtype
 
 from lzero.entry.utils import initialize_zeros_batch
 from lzero.mcts.tree_search.diamond_mcts_ctree import DiamondMCTSTree as MCTSCtree
@@ -23,10 +23,7 @@ from lzero.policy import scalar_transform, InverseScalarTransform, cross_entropy
 from torch.distributions import Categorical
 from torch.nn import L1Loss
 
-import psutil
-import os
-
-from zoo.atari.entry.tree_visualization import plot_images, print_buffers
+from zoo.atari.entry.tree_visualization import print_buffers, breakout_action_to_str, create_trajectory, plot_images
 
 
 @POLICY_REGISTRY.register('diamond')
@@ -829,6 +826,10 @@ class DiamondPolicy(Policy):
         self.obs_buffer = torch.zeros([4, self._cfg.model.observation_shape[0], 64, 64], device=self._cfg.device)
         self.act_buffer = torch.zeros([1, 4], dtype=torch.int64, device=self._cfg.device)
 
+        self.policy_actions = []
+        self.mcts_actions = []
+        self.observations = []
+
         self.step = 0
         self.ac_hidden_state = None
         self.rew_end_hidden_state = None
@@ -842,31 +843,32 @@ class DiamondPolicy(Policy):
         if ready_env_id is None:
             ready_env_id = np.arange(active_eval_env_num)
         output = {i: None for i in ready_env_id}
-
         # Data comes in range [0, 1], convert to [-1, 1]
-        data = data * 2 - 1
+        self.observations.append(data.detach().cpu())
+        observation = data * 2 - 1
 
         with torch.no_grad():
             if self._cfg.model.model_type in ["conv", "mlp"]:
-                policy_logits, values, hidden_state = self._eval_model.predict(obs=data, ac_hidden_state=self.ac_hidden_state)
-                batch_size = data.size(0)
+                policy_logits, values, hidden_state = self._eval_model.predict(obs=observation, ac_hidden_state=self.ac_hidden_state)
+                batch_size = observation.size(0)
                 reward_roots =  [0. for _ in range(batch_size)]
 
             if not self._eval_model.training:
                 # if not in training, obtain the scalars of the value/reward
                 predicted_values = values.detach().cpu().numpy()  # shape（B, 1）
-                initial_observation = data.detach().cpu().numpy()
+                initial_observation = observation.detach().cpu().numpy()
                 policy_entropy = Categorical(logits=policy_logits).entropy().detach().cpu().numpy()
                 policy_logits = policy_logits.detach().cpu().numpy().tolist()  # list shape（B, A）
                 ac_action = np.argmax(policy_logits)
 
             legal_actions = [[i for i, x in enumerate(action_mask[j]) if x == 1] for j in range(active_eval_env_num)]
 
+            roots_observations = self.obs_buffer * 2 - 1
             roots = MCTSPtree.roots(active_eval_env_num,
                                     legal_actions,
                                     ac_hidden_state=self.ac_hidden_state,
                                     rew_end_hidden_state=self.rew_end_hidden_state,
-                                    obs_buffer=self.obs_buffer,
+                                    obs_buffer=roots_observations,
                                     act_buffer=self.act_buffer,
                                     observation=initial_observation
                                     )
@@ -886,25 +888,20 @@ class DiamondPolicy(Policy):
                     distributions, value = roots_visit_count_distributions[i], roots_values[i]
                     visit_count_distribution_entropy = 0
                     self.ac_hidden_state = hidden_state
-                    if self.step < 4:
-                        self.obs_buffer[self.step] = data
+
                 else:
                     distributions, value = roots_visit_count_distributions[i], roots_values[i]
-                    # NOTE: Only legal actions possess visit counts, so the ``action_index_in_legal_action_set`` represents
-                    # the index within the legal action set, rather than the index in the entire action set.
-                    #  Setting deterministic=True implies choosing the action with the highest value (argmax) rather than
-                    # sampling during the evaluation phase.
                     action_index_in_legal_action_set, visit_count_distribution_entropy = select_action(
                         distributions, temperature=1, deterministic=True
                     )
-                    # NOTE: Convert the ``action_index_in_legal_action_set`` to the corresponding ``action`` in the
-                    # entire action set.
                     action = np.where(action_mask[i] == 1.0)[0][action_index_in_legal_action_set]
                     selected_child = roots.roots[i].children[action_index_in_legal_action_set]
                     self.ac_hidden_state = selected_child.ac_hidden_state
                     self.rew_end_hidden_state = selected_child.rew_end_hidden_state
-                    self.obs_buffer = selected_child.obs_buffer
-                    self.act_buffer = selected_child.act_buffer
+
+                action_tensor = torch.tensor([[action]], dtype=torch.int64, device=self._cfg.device)
+                self.act_buffer = torch.cat((self.act_buffer[:, 1:], action_tensor), dim=1)
+                self.obs_buffer = torch.cat((self.obs_buffer[1:], data), dim=0) # TODO: check if this is correct
 
                 output[env_id] = {
                     'action': action,
@@ -917,13 +914,20 @@ class DiamondPolicy(Policy):
                     'ac_action': ac_action, # argmax following policy
                     'same_action': int(ac_action == action)
                 }
+
+                self.policy_actions.append(ac_action)
+                self.mcts_actions.append(action)
+
+
                 if self._cfg.model.model_type in ["conv_context"]:
                     batch_action.append(action)
             if self._cfg.model.model_type in ["conv_context"]:
                 self.last_batch_obs = data
                 self.last_batch_action = batch_action
-        #self._eval_model.agent.set_model_hidden_state(hidden_state) # TODO: this isn't the correct hidden state
 
+            #self.save_data(roots)
+
+        print(f"Step: {self.step} Action:{breakout_action_to_str(action)} AC_ACTION:{breakout_action_to_str(ac_action)}")
         self.step += 1
         #print_buffers(self.obs_buffer, self.step)
         return output
@@ -1042,3 +1046,11 @@ class DiamondPolicy(Policy):
         # be compatible with DI-engine Policy class
         pass
 
+    def save_data(self, roots):
+        roots.store_mcts_tree(step=self.step)  # Save the trajectories for analysis
+        with open(f'./mcts/diamond/mcts_actions.pkl', 'wb') as f:
+            pickle.dump(self.mcts_actions, f)
+        with open(f'./mcts/diamond/policy_actions.pkl', 'wb') as f:
+            pickle.dump(self.policy_actions, f)
+        with open(f'./mcts/diamond/observations.pkl', 'wb') as f:
+            pickle.dump(self.observations, f)

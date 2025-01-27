@@ -1,10 +1,13 @@
+import copy
 from functools import partial
 from pathlib import Path
 
 import hydra
 import numpy as np
+from Cython.Compiler.PyrexTypes import modifiers_and_name_to_type
 from hydra import initialize, compose
 from hydra.utils import instantiate
+from matplotlib import pyplot as plt
 from omegaconf import DictConfig, open_dict
 import torch
 
@@ -199,8 +202,57 @@ def run_diamond_agent(observations, actions, diamond_wm, diamond_rew_end, start_
         observations[start_step: start_step + 4] + wm_observations,
         generation_start, num_plotted_images, transpose=True, title="Diamond-WM")
 
+def burn_in_iris_test(observations, actions, iris_wm_env, start_step, device):
+
+    num_decoded_obs = 12
+    observation_slice = observations[start_step: start_step + num_decoded_obs]
+
+    # Plot original images
+    original_obs = copy.deepcopy(observation_slice)
+    plot_images(original_obs, start_step, num_decoded_obs, transpose=True, title="Gym-Env-Original")
+
+    # Plot decoded original images
+    tensor_observations = [torch.from_numpy(np.expand_dims(obs, axis=0)).to(device) for obs in original_obs]
+    decoded_obs, encoded_tokens = iris_wm_env.vq_encoder_only(tensor_observations)
+    decoded_obs = [obs.squeeze().detach().cpu().numpy() for obs in decoded_obs]
+    plot_images(decoded_obs, start_step, num_decoded_obs, transpose=True, title="Iris-WM-Original")
+
+    # Plot modified images
+    modified_observations = [modify_observation(x) for x in observation_slice]
+    plot_images(modified_observations, start_step, num_decoded_obs, transpose=True, title="Iris-Env-Modified")
+
+    # Plot decoded modified images
+    tensor_observations = [torch.from_numpy(np.expand_dims(obs, axis=0)).to(device) for obs in modified_observations]
+    decoded_obs, encoded_tokens = iris_wm_env.vq_encoder_only(tensor_observations)
+    decoded_obs = [obs.squeeze().detach().cpu().numpy() for obs in decoded_obs]
+    plot_images(decoded_obs, start_step, num_decoded_obs, transpose=True, title="Iris-WM-Modified")
+
+def tokens_saturation(observations, iris_wm_env,device):
 
 
+    tensor_observations = [torch.from_numpy(np.expand_dims(obs, axis=0)).to(device) for obs in observations]
+    decoded_obs, encoded_tokens = iris_wm_env.vq_encoder_only(tensor_observations)
+
+    histogram = torch.histc(encoded_tokens, bins=512, min=0, max=511)
+    histogram = histogram.detach().cpu().numpy()
+    plt.bar(range(512), histogram, color='blue', edgecolor='black', alpha=0.7)
+    plt.title("Histogram of Tensor Values")
+    plt.xlabel("Bin")
+    plt.ylabel("Frequency")
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.show()
+
+    return histogram
+
+
+def modify_observation(obs):
+
+    # Horizontal line
+    obs[:, 20:30, :] = 0
+
+    # Vertical line
+    #obs[:, :, 32] = 0
+    return obs
 
 def main():
 
@@ -219,12 +271,15 @@ def main():
     observations, actions, lost_lives_timesteps = run_gym_env(env, max_steps, iris_agent, device)
     print(lost_lives_timesteps)
 
+
     run_iris_agent(observations, actions, iris_wm_env, start_step, device)
-    run_diamond_agent(observations, actions, diamond_wm_env, diamond_rew_end, start_step, device)
 
-
-    action_strings = [breakout_action_to_str(action) for action in actions]
-    print(action_strings[start_step: start_step + 16])
+    histogram = tokens_saturation(observations, iris_wm_env, device)
+    burn_in_iris_test(observations, actions, iris_wm_env, start_step, device)
+    # run_diamond_agent(observations, actions, diamond_wm_env, diamond_rew_end, start_step, device)
+    #
+    # action_strings = [breakout_action_to_str(action) for action in actions]
+    # print(action_strings[start_step: start_step + 16])
 
 if __name__ == "__main__":
 

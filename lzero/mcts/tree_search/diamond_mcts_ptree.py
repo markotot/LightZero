@@ -220,4 +220,6 @@ class DiamondMCTSPtree(object):
                     results=results,
                     to_play=virtual_to_play_batch
                 )
+
+
         self.step += 1

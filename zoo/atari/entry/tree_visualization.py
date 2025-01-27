@@ -3,19 +3,18 @@ import math
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
-from gymnasium.utils.step_api_compatibility import step_api_compatibility
 
 
 def print_buffers(obs_buffer, step):
 
     trajectory = []
     for observation in obs_buffer:
-        observation = observation + 1 / 2
         observation = observation.detach().cpu().numpy()
-        #observation = np.transpose(observation, (1, 2, 0))
+        # observation = observation + 1 / 2
+        # observation = np.transpose(observation, (1, 2, 0))
         trajectory.append(observation)
 
-    plot_images(trajectory, step)
+    plot_images(trajectory, step, num_steps=len(trajectory), transpose=True)
 
 
 def get_best_child(node):
@@ -29,18 +28,17 @@ def get_best_child(node):
 
     return best_child
 
-def create_trajectory(node, start_step):
+def create_trajectory(node, num_steps):
 
     trajectory = []
-
+    actions = []
     while len(node.children) > 0:
         obs = get_observation(node)
         trajectory.append(obs)
+        actions.append(node.best_action)
         node = get_best_child(node)
 
-    plot_images(trajectory[:16], start_step)
-
-    return len(trajectory[:16])
+    return trajectory[:num_steps], actions[:num_steps]
 
 def get_observation(node):
     observation = node.observation.squeeze()
@@ -85,6 +83,7 @@ def plot_images(images, start_step, num_steps, transpose, title=""):
 
     image = np.concatenate(image_rows, 0)
 
+    plt.figure(dpi=300)
     plt.imshow(image)
     plt.axis('off')  # Optional: Turn off the axis
     plt.title(f"{title} - Step {start_step}")
@@ -134,20 +133,44 @@ def get_plan_for_actions(roots, actions):
     return observations
 
 
+def breakout_action_to_str(action):
+    if action == 0:
+        return "NOOP"
+    elif action == 1:
+        return "FIRE"
+    elif action == 2:
+        return "RIGHT"
+    elif action == 3:
+        return "LEFT"
+
+
 if __name__ == "__main__":
 
-    step = 1120
+    step = 560
     num_steps = 16
-    file_path = f'mcts/iris'
+    algorithm = "diamond"
+    file_path = f'mcts/{algorithm}'
 
     roots = load_roots(file_path, step)
     observations = load_observations(file_path)
     mcts_actions, policy_actions = load_actions(file_path)
 
-    plot_images(observations[step:], step, num_steps, "Real Env")
-    print("MCTS actions: ", mcts_actions[step:step+num_steps])
-    print("Policy actions: ", policy_actions[step:step+num_steps])
-
-
     plan_observations = get_plan_for_actions(roots, mcts_actions[step:])
-    plot_images(plan_observations, step, num_steps, "World Model")
+    planned_traj, planned_actions = create_trajectory(roots, step)
+
+    if algorithm == "diamond":
+        plan_observations = [(obs + 1) / 2 for obs in plan_observations]
+        planned_traj = [(obs + 1) / 2 for obs in planned_traj]
+
+
+    mcts_str_actions = [breakout_action_to_str(x) for x in mcts_actions[step:step + num_steps]]
+    policy_str_actions = [breakout_action_to_str(x) for x in policy_actions[step:step + num_steps]]
+    planned_str_actions = [breakout_action_to_str(x) for x in planned_actions]
+    print("MCTS actions:\t", mcts_str_actions)
+    print("Policy actions:\t", policy_str_actions)
+    print("Planned actions:\t", planned_str_actions)
+
+    plot_images(observations[step:], step, num_steps, transpose=False, title="Real Env")
+    plot_images(plan_observations, step, num_steps, transpose=False, title=f"{algorithm}: WM Same Actions")
+    plot_images(planned_traj, step, num_steps, transpose=False, title=f"{algorithm}: Best Planned Trajectory")
+    print("Hi!")

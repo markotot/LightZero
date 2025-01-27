@@ -86,6 +86,7 @@ class WorldModel(nn.Module):
         prev_steps = 0
         if num_steps == 340:
             print("Num steps is 340")
+
         embeddings = self.embedder(tokens, num_steps, prev_steps)
         pos_embeddings = self.pos_emb(torch.arange(num_steps, device=tokens.device) + prev_steps)
         sequences = embeddings + pos_embeddings
