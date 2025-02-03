@@ -29,8 +29,8 @@ From: nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
 
     # install conda components - add the packages you need here
     . /opt/conda/etc/profile.d/conda.sh
-    conda create -n iris python=3.10
-    conda activate iris
+    conda create -n lightzero python=3.10
+    conda activate lightzero
 
     # python -m pip install --upgrade pip setuptools
     # pip install pip -U
@@ -41,7 +41,7 @@ From: nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
 
 %environment
     . /opt/conda/etc/profile.d/conda.sh
-    conda activate iris
+    conda activate lightzero
 
 %runscript
 

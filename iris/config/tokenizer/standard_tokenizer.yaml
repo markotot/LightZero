@@ -10,7 +10,7 @@ encoder:
     in_channels: 3
     z_channels: 512
     ch: 64
-    ch_mult: [1, 1, 1, 1, 1]
+    ch_mult: [1, 1, 1, 1, 1] # changed from [1, 1, 1, 1, 1]
     num_res_blocks: 2
     attn_resolutions: [8, 16]
     out_ch: 3

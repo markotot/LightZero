@@ -81,7 +81,7 @@ class IrisMCTSPtree(object):
         )
 
     @classmethod
-    def roots(cls: int, root_num: int, legal_actions: List[Any], ac_hidden_state: Tuple[np.array, np.array], wm_kv_cache: KeysValues, observation: np.array) -> "mz_ptree.Roots":
+    def roots(cls: int, root_num: int, legal_actions: List[Any], ac_hidden_state: Tuple[np.array, np.array], wm_kv_cache: KeysValues, observation: np.array, tokens: np.array) -> "mz_ptree.Roots":
         """
         Overview:
             Initializes a batch of roots to search parallelly later.
@@ -92,13 +92,14 @@ class IrisMCTSPtree(object):
         ..note::
             The initialization is achieved by the ``Roots`` class from the ``ptree_mz`` module.
         """
-        return tree_muzero.Roots(root_num, legal_actions, ac_hidden_state=ac_hidden_state, wm_kv_cache=wm_kv_cache, observation=observation)
+        return tree_muzero.Roots(root_num, legal_actions, ac_hidden_state=ac_hidden_state, wm_kv_cache=wm_kv_cache, observation=observation, tokens=tokens)
 
     def search(
             self,
             roots: Any,
             model: torch.nn.Module,
             observation_seq: List[torch.Tensor] = None,
+            tokens_seq: List[torch.Tensor] = None,
             action_seq: List[torch.Tensor] = None,
             to_play_batch: Union[int, List[Any]] = -1,
 
@@ -136,14 +137,16 @@ class IrisMCTSPtree(object):
                 MCTS stage 1: Selection
                     Each simulation starts from the internal root state s0, and finishes when the simulation reaches a leaf node s_l.
                 """
-                _, last_actions, virtual_to_play_batch, hidden_states, world_model_kv_cache, selected_nodes = tree_muzero.batch_traverse(
+                _, _, last_actions, virtual_to_play_batch, hidden_states, world_model_kv_cache, selected_nodes = tree_muzero.batch_traverse(
                     roots, pb_c_base, pb_c_init, discount_factor, min_max_stats_lst, results, to_play_batch
                 )
 
                 observations_to_root = selected_nodes[0].get_observations_to_root()
                 observations_to_root = [ torch.from_numpy(obs).to(self._cfg.device) for obs in observations_to_root ]
+                tokens_to_root = selected_nodes[0].get_tokens_to_root()
+                tokens_to_root = [ torch.from_numpy(t).to(self._cfg.device) for t in tokens_to_root ]
                 input_obs_seq = observation_seq + observations_to_root
-
+                input_tokens_seq = tokens_seq + tokens_to_root
                 actions_to_root = selected_nodes[0].get_actions_to_root()
                 actions_to_root = [ torch.tensor(a, dtype=torch.long, device=self._cfg.device) for a in actions_to_root ]
                 input_act_seq = action_seq + actions_to_root
@@ -156,17 +159,21 @@ class IrisMCTSPtree(object):
                     At the end of the simulation, the statistics along the trajectory are updated.
                 """
 
-                network_output = model.recurrent_inference(hidden_states[0], input_obs_seq, input_act_seq)
+                network_output = model.recurrent_inference(hidden_states[0], input_obs_seq, input_tokens_seq, input_act_seq)
 
 
                 if not model.training:
                     # if not in training, obtain the scalars of the value/reward
                     [
-                        network_output.observation, network_output.policy_logits, network_output.value,
+                        network_output.observation,
+                        network_output.tokens,
+                        network_output.policy_logits,
+                        network_output.value,
                         network_output.reward
                     ] = to_detach_cpu_numpy(
                         [
                             network_output.observation,
+                            network_output.tokens,
                             network_output.policy_logits,
                             network_output.value,
                             network_output.reward,
@@ -188,6 +195,7 @@ class IrisMCTSPtree(object):
                     simulation_index=current_latent_state_index,
                     model_hidden_state=model_hidden_state,
                     observation=network_output.observation,
+                    tokens=network_output.tokens,
                     kv_cache=world_model_kv_cache,
                     discount_factor=discount_factor,
                     value_prefixs=reward_batch,

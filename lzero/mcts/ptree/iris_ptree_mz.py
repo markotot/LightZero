@@ -29,6 +29,7 @@ class Node:
                  action_space_size: int = 9,
                  parent = None,
                  observation = None,
+                 tokens = None,
                  ac_hidden_state: Tuple[np.array, np.array] = None,
                  kv_cache = None) -> None:
 
@@ -47,6 +48,7 @@ class Node:
         self.value_prefix = 0.0
 
         self.observation = observation
+        self.tokens = tokens
         self.children = {}
         self.children_index = []
         self.simulation_index = 0
@@ -181,6 +183,15 @@ class Node:
 
         return observations
 
+    def get_tokens_to_root(self):
+        tokens = []
+        current_node = self.parent
+        while current_node.parent is not None:
+            tokens.insert(0, current_node.tokens)
+            current_node = current_node.parent
+
+        return tokens
+
     def get_actions_to_root(self):
 
         actions = []
@@ -252,7 +263,7 @@ class Roots:
         ``get_distributions``, ``get_values``
     """
 
-    def __init__(self, root_num: int, legal_actions_list: List, ac_hidden_state: Tuple[np.array, np.array], wm_kv_cache: KeysValues, observation: np.array) -> None:
+    def __init__(self, root_num: int, legal_actions_list: List, ac_hidden_state: Tuple[np.array, np.array], wm_kv_cache: KeysValues, observation: np.array, tokens: np.array) -> None:
         """
         Overview:
             Initializes an instance of the Roots class with the specified number of roots and legal actions.
@@ -267,9 +278,9 @@ class Roots:
         self.roots = []
         for i in range(self.root_num):
             if isinstance(legal_actions_list, list):
-                self.roots.append(Node(0, legal_actions_list[i], ac_hidden_state=ac_hidden_state, observation=observation, kv_cache=wm_kv_cache))
+                self.roots.append(Node(0, legal_actions_list[i], ac_hidden_state=ac_hidden_state, observation=observation, tokens=tokens, kv_cache=wm_kv_cache))
             else:
-                self.roots.append(Node(0, np.arange(legal_actions_list), ac_hidden_state=ac_hidden_state, observation=observation, kv_cache=wm_kv_cache))
+                self.roots.append(Node(0, np.arange(legal_actions_list), ac_hidden_state=ac_hidden_state, observation=observation, tokens=tokens, kv_cache=wm_kv_cache))
 
     def prepare(
             self,
@@ -394,6 +405,7 @@ class SearchResults:
         self.search_lens = []
         self.hidden_states = []
         self.observations = []
+        self.tokens = []
         self.key_value_caches = []
 
 
@@ -523,6 +535,7 @@ def batch_traverse(
     results.hidden_states = [None for _ in range(results.num)]
     results.key_values_cache = [None for _ in range(results.num)]
     results.observations = [None for _ in range(results.num)]
+    results.tokens = [None for _ in range(results.num)]
     results.nodes = [None for _ in range(results.num)]
     results.latent_state_index_in_search_path = [None for _ in range(results.num)]
     results.latent_state_index_in_batch = [None for _ in range(results.num)]
@@ -573,6 +586,7 @@ def batch_traverse(
             results.hidden_states[i] = parent.ac_hidden_state
             results.key_values_cache[i] = parent.kv_cache
             results.observations[i] = parent.observation
+            results.tokens[i] = parent.tokens
             results.latent_state_index_in_search_path[i] = parent.simulation_index
             results.latent_state_index_in_batch[i] = parent.batch_index
             results.last_actions[i] = last_action
@@ -581,7 +595,7 @@ def batch_traverse(
             results.nodes[i] = node
 
     # print(f'env {i} one simulation done!')
-    return results.observations, results.last_actions, virtual_to_play, results.hidden_states, results.key_values_cache, results.nodes
+    return results.observations, results.tokens, results.last_actions, virtual_to_play, results.hidden_states, results.key_values_cache, results.nodes
 
 
 def backpropagate(
@@ -641,6 +655,7 @@ def backpropagate(
 def batch_backpropagate(
         simulation_index: int,
         observation: np.array,
+        tokens: np.array,
         model_hidden_state: Tuple[torch.tensor, torch.tensor],
         kv_cache: Tuple[KeysValues],
         discount_factor: float,
@@ -685,6 +700,7 @@ def batch_backpropagate(
         results.nodes[i].ac_hidden_state = model_hidden_state
         results.nodes[i].kv_cache = kv_cache
         results.nodes[i].observation = observation
+        results.nodes[i].tokens = tokens
         # ****** backpropagate ******
         if to_play is None:
             backpropagate(results.search_paths[i], min_max_stats_lst.stats_lst[i], 0, values[i], discount_factor)

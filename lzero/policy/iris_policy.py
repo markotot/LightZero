@@ -304,6 +304,7 @@ class IrisPolicy(Policy):
         self.policy_actions = []
         self.mcts_actions = []
         self.observations = []
+        self.tokens = []
 
         self.ac_hidden_state = None
         self.wm_kv_cache = None
@@ -334,21 +335,27 @@ class IrisPolicy(Policy):
 
             legal_actions = [[i for i, x in enumerate(action_mask[j]) if x == 1] for j in range(active_eval_env_num)]
 
+            obs_tokens = self._eval_model.agent.tokenizer.encode(data, should_preprocess=True).tokens
+            self.tokens.append(obs_tokens)
             roots = MCTSPtree.roots(root_num=active_eval_env_num,
                                     legal_actions=legal_actions,
                                     ac_hidden_state=self.ac_hidden_state,
                                     wm_kv_cache=self.wm_kv_cache,
-                                    observation=initial_observation)
+                                    observation=initial_observation,
+                                    tokens=obs_tokens)
 
             roots.prepare_no_noise(rewards=reward_roots, policies=policy_logits, to_play=to_play)
 
             obs_seq = [obs.to(self._cfg.device) for obs in self.observations]
+            tokens_seq = [t.to(self._cfg.device) for t in self.tokens]
             action_seq = [torch.tensor(a, dtype=torch.long, device=self._cfg.device) for a in self.mcts_actions]
+
 
             self._mcts_eval.search(roots=roots,
                                    model=self._eval_model,
                                    to_play_batch=to_play,
                                    observation_seq=obs_seq,
+                                   tokens_seq=tokens_seq,
                                    action_seq=action_seq)
 
             roots_visit_count_distributions = roots.get_distributions()

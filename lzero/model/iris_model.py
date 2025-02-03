@@ -92,22 +92,16 @@ class IrisModel(nn.Module):
     def recurrent_inference(self,
                             model_hidden_state: Tuple[np.ndarray, np.ndarray],
                             obs_seq: torch.Tensor,
+                            tokens_seq: torch.Tensor,
                             action_seq: torch.Tensor) -> IrisNetworkOutput:
 
+        next_obs, next_tokens, reward, done, _ = self.world_model_env.step_with_tokens(action_seq, tokens_seq)
+        # next_obs, reward, done, _ = self.world_model_env.step_v2(action_seq, obs_seq) # TODO: enable this for pixel reconstruction
 
-        # if wm_keys_values is None:
-        #     self.world_model_env.reset_from_initial_observations(observation)
-        # else:
-        #     self.world_model_env.set_kv_cache(wm_keys_values)
-        # next_obs, reward, done = None, None, None
-        # next_obs, reward, done, _ = self.world_model_env.step(action, should_predict_next_obs=True)
-        next_obs, reward, done, _ = self.world_model_env.step_v2(action_seq, obs_seq)
 
-        # env_obs = observation[0].detach().cpu().numpy()
-        last_env_obs = obs_seq[-1][0].detach().cpu().numpy()
-        wm_obs = next_obs[0].detach().cpu().numpy()
-
-        #plot_images([last_env_obs, wm_obs], start_step=0, num_steps=2, transpose=True)
+        # last_env_obs = obs_seq[-1][0].detach().cpu().numpy()
+        # wm_obs = next_obs[0].detach().cpu().numpy()
+        # plot_images([last_env_obs, wm_obs], start_step=0, num_steps=2, transpose=True)
         policy_logits, value, hidden_state = self.predict(next_obs, model_hidden_state=model_hidden_state, temperature=1.0)
 
         ac_hidden_state = (hidden_state[0].detach().cpu(), hidden_state[1].detach().cpu())
@@ -117,6 +111,7 @@ class IrisModel(nn.Module):
             reward=torch.from_numpy(reward),
             policy_logits=policy_logits,
             observation=next_obs,
+            tokens=next_tokens,
             ac_hidden_state=ac_hidden_state,
         )
 
