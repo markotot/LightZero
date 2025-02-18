@@ -9,4 +9,4 @@
 
 # Replace the following line with a program or command
 APPTAINERENV_NSLOTS=${NSLOTS}
-apptainer build --force containers/iris.sif $PROJECT_NAME/apptainer/lightzero.def;
+apptainer build --force containers/lightzero.sif $PROJECT_NAME/apptainer/lightzero.def;
