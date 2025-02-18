@@ -2,6 +2,7 @@
 #$ -pe smp 8
 #$ -l h_vmem=1G
 #$ -l h_rt=1:0:0
+#$ -l rocky
 #$ -cwd
 #$ -j y
 #$ -o job_results
