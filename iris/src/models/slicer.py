@@ -50,5 +50,8 @@ class Embedder(nn.Module):
         output = torch.zeros(*tokens.size(), self.embedding_dim, device=tokens.device)
         for slicer, emb in zip(self.slicers, self.embedding_tables):
             s = slicer.compute_slice(num_steps, prev_steps)
-            output[:, s] = emb(tokens[:, s])
+            tokens_sliced = tokens[:, s]
+            embeddings = emb(tokens_sliced)
+            output[:, s] = embeddings
+
         return output

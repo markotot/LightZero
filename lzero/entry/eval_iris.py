@@ -20,6 +20,7 @@ def eval_iris(
         seed: int = 0,
         model: Optional[torch.nn.Module] = None,
         model_path: Optional[str] = None,
+        model_cfg: Optional[str] = None,
         num_episodes_each_seed: int = 1,
         print_seed_details: int = False,
 ) -> 'Policy':  # noqa
@@ -55,6 +56,7 @@ def eval_iris(
 
     cfg.policy.model.model_path = model_path
     cfg.policy.model.env_id = cfg.env.env_id
+    cfg.policy.model.model_cfg = model_cfg
     policy = create_policy(cfg.policy, model=model, enable_field=['learn', 'collect', 'eval'])
 
     # Create worker components: learner, collector, evaluator, replay buffer, commander.

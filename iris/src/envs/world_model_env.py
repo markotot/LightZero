@@ -24,7 +24,8 @@ class WorldModelEnv:
         self.env = env
 
         self.obs_tokens = None
-        self._num_observations_tokens = 16
+        self._num_observations_tokens = world_model.config.tokens_per_block - 1
+        self._seq_length = world_model.config.max_blocks
 
     @property
     def num_observations_tokens(self) -> int:
@@ -44,12 +45,11 @@ class WorldModelEnv:
         act_tokens = torch.tensor(actions, dtype=torch.long).to(self.device).unsqueeze(1)
         obs_act_sequence = torch.cat((obs_tokens, act_tokens), dim=1)
         obs_act_sequence = obs_act_sequence.flatten().unsqueeze(0)
-        num_passes = 16 # assumed that number of tokens for observation is 16
-        max_length = 340
+        max_length = self._seq_length * (self._num_observations_tokens + 1)
 
-        for k in range(num_passes):
+        for k in range(self._num_observations_tokens):
 
-            input_tokens = obs_act_sequence[:, -max_length+num_passes + 1 - k:] if obs_act_sequence.size(1) >= -max_length else obs_act_sequence
+            input_tokens = obs_act_sequence[:, -max_length+self._num_observations_tokens + 1 - k:] if obs_act_sequence.size(1) >= -max_length else obs_act_sequence
             outputs_wm = self.world_model(input_tokens, past_keys_values=self.keys_values_wm)
 
             # First forward pass after sending action token provides reward and done
@@ -60,7 +60,7 @@ class WorldModelEnv:
             next_token = Categorical(logits=outputs_wm.logits_observations[:,-1]).sample()
             obs_act_sequence = torch.cat((obs_act_sequence, next_token.unsqueeze(0)), dim=1)
 
-        self.obs_tokens = obs_act_sequence[:, -num_passes:]
+        self.obs_tokens = obs_act_sequence[:, -self._num_observations_tokens:]
         obs = self.decode_obs_tokens()
         return obs, reward, done, None
 
@@ -72,12 +72,11 @@ class WorldModelEnv:
         act_tokens = torch.tensor(actions, dtype=torch.long).to(self.device).unsqueeze(1)
         obs_act_sequence = torch.cat((obs_tokens, act_tokens), dim=1)
         obs_act_sequence = obs_act_sequence.flatten().unsqueeze(0)
-        num_passes = 16  # assumed that number of tokens for observation is 16
-        max_length = 340
+        max_length = self._seq_length * (self._num_observations_tokens + 1)
 
-        for k in range(num_passes):
+        for k in range(self._num_observations_tokens):
 
-            input_tokens = obs_act_sequence[:, -max_length + num_passes + 1 - k:] if obs_act_sequence.size(
+            input_tokens = obs_act_sequence[:, -max_length + self._num_observations_tokens + 1 - k:] if obs_act_sequence.size(
                 1) >= -max_length else obs_act_sequence
             outputs_wm = self.world_model(input_tokens, past_keys_values=self.keys_values_wm)
 
@@ -89,7 +88,7 @@ class WorldModelEnv:
             next_token = Categorical(logits=outputs_wm.logits_observations[:, -1]).sample()
             obs_act_sequence = torch.cat((obs_act_sequence, next_token.unsqueeze(0)), dim=1)
 
-        self.obs_tokens = obs_act_sequence[:, -num_passes:]
+        self.obs_tokens = obs_act_sequence[:, -self._num_observations_tokens:]
         obs = self.decode_obs_tokens()
         return obs, self.obs_tokens, reward, done, None
 
@@ -102,19 +101,18 @@ class WorldModelEnv:
         act_tokens = torch.tensor(actions, dtype=torch.long).to(self.device).unsqueeze(1)
         obs_act_sequence = torch.cat((obs_tokens, act_tokens), dim=1)
         obs_act_sequence = obs_act_sequence.flatten().unsqueeze(0)
-        num_passes = 16  # assumed that number of tokens for observation is 16
-        max_length = 340
+        max_length = self._seq_length * (self._num_observations_tokens + 1)
 
-        for k in range(num_passes):
+        for k in range(self._num_observations_tokens):
 
-            input_tokens = obs_act_sequence[:, -max_length + num_passes + 1 - k:] if obs_act_sequence.size(
+            input_tokens = obs_act_sequence[:, -max_length + self._num_observations_tokens + 1 - k:] if obs_act_sequence.size(
                 1) >= -max_length else obs_act_sequence
             outputs_wm = self.world_model(input_tokens, past_keys_values=self.keys_values_wm)
 
             next_token = Categorical(logits=outputs_wm.logits_observations[:, -1]).sample()
             obs_act_sequence = torch.cat((obs_act_sequence, next_token.unsqueeze(0)), dim=1)
 
-        self.obs_tokens = obs_act_sequence[:, -num_passes:]
+        self.obs_tokens = obs_act_sequence[:, -self._num_observations_tokens:]
         obs = self.decode_obs_tokens()
 
         return obs, self.obs_tokens

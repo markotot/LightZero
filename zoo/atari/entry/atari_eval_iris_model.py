@@ -30,7 +30,7 @@ if __name__ == "__main__":
     # model_path is the path to the trained MuZero model checkpoint.
     # If no path is provided, the script will use the default model.
     model_path = None
-
+    encoder_type = "64patches"
     if len(sys.argv) > 1:
         seed = int(sys.argv[1])
     else:
@@ -40,11 +40,11 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 2:
         env_id = sys.argv[2]
-        model_path = get_model_path_from_env_id(env_id)
+        model_path, model_cfg = get_model_path_from_env_id(env_id, encoder_type)
         print("Model path provided. Using the provided model path.")
     else:
         env_id = "BreakoutNoFrameskip-v4"
-        model_path = get_model_path_from_env_id(env_id)
+        model_path, model_cfg = get_model_path_from_env_id(env_id, encoder_type)
         print("No model path provided. Using the default model path.")
 
     print(f"Running evaluation for environment {env_id} with seed {seed} and model path {model_path}")
@@ -83,7 +83,8 @@ if __name__ == "__main__":
                 "create_config": create_config,
                 "seed": seed,
                 "num_episodes_each_seed": num_episodes_each_seed,
-                "model_path": model_path
+                "model_path": model_path,
+                "model_cfg": model_cfg,
                 }
         with wandb.init(project="iris-muzero", name="iris-muzero-atari", config=config):
 
@@ -92,7 +93,8 @@ if __name__ == "__main__":
                 seed=seed,
                 num_episodes_each_seed=num_episodes_each_seed,
                 print_seed_details=False,
-                model_path=model_path
+                model_path=model_path,
+                model_cfg=model_cfg,
             )
             returns_mean_seeds.append(returns_mean)
             returns_seeds.append(returns)

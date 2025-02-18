@@ -43,14 +43,14 @@ def setup_env(seed, env_id):
     set_pkg_seed(cfg.seed, use_cuda=cfg.policy.cuda)
     return env, cfg
 
-def setup_iris(env_id, device):
+def setup_iris(env_id, encoder_type, device):
 
-    path = "../../../iris/config/"
-    with initialize(config_path=path, job_name="test_app"):
+    model_path, model_cfg = iris_config.get_model_path_from_env_id(env_id, encoder_type)
+    model_cfg = f"../{model_cfg}"
+    with initialize(config_path=model_cfg, job_name="test_app"):
         cfg = compose(config_name="trainer")
 
     cfg.env.test.id = env_id  # override iris config to the LightZero config
-    model_path = iris_config.get_model_path_from_env_id(env_id)
 
     env_fn = partial(instantiate, config=cfg.env.test)
     test_env = SingleProcessEnv(env_fn)
@@ -64,7 +64,7 @@ def setup_iris(env_id, device):
     agent = Agent(tokenizer, world_model, actor_critic).to(device)
 
     # so many ../.. because we are in "./LightZero/zoo/atari/entry/outputs/2024-12-19/12-39-16"
-    #agent.load(Path(f"../../../{model_path}"), device)
+    agent.load(Path(f"../../../{model_path}"), device)
 
     world_model_env = IrisWorldModelEnv(tokenizer=agent.tokenizer, world_model=agent.world_model, device=device,
                                     env=env_fn())
@@ -184,9 +184,9 @@ def run_iris_embedding_agent(observations, actions, world_model_env, start_step,
         wm_input_obs = obs_seq[i: i + 20] + wm_obs_seq
 
         wm_obs, _, _, _ = world_model_env.step_v2(wm_input_actions, wm_input_obs)
-
-        plot_vq_vae_difference(wm_input_obs, world_model_env, start_step + i, device)
         wm_obs_seq.append(wm_obs)
+        #plot_vq_vae_difference(wm_input_obs, world_model_env, start_step + i)
+
 
     num_plotted_images = 16
     generation_start = start_step + 20
@@ -353,40 +353,44 @@ def tokens_saturation(observations, iris_wm_env,device):
 def modify_observation(obs):
 
     # Horizontal line
-    #obs[:, 16, :] = 0
-    #obs[:, 32, :] = 1
-    #obs[:, 48, :] = 1
+    #obs[:, 19:21, :] = 0
+    #obs[:, 32, :] = 0
+    #obs[:, 48, :] = 0
 
     # Vertical line
     #obs[:, :, 16] = 0
-    #obs[:, :, 32] = 1
-    #obs[:, :, 48] = 1
+    #obs[:, :, 32] = 0
+    #obs[:, :, 48] = 0
 
     #obs[:, 16:31, 16:31] = 0
-    obs[:, 18:45, 18:45] = 0
+    obs[:, :, :] = 0
     return obs
 
 def main():
 
-    start_step = 150
+    start_step = 700
     seed = 0
-    env_id = "FreewayNoFrameskip-v4"
-    max_steps = 200
+    env_id = "BreakoutNoFrameskip-v4"
+    encoder_type = "original"
+    # encoder_type = "64patches"
+    # encoder_type = "2048vocab"
+    max_steps = 800
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # This is only for the data collection
+    original_iris_agent, _ = setup_iris(env_id, "original", device)
     env, light_zero_cfg = setup_env(seed, env_id)
-    iris_agent, iris_wm_env = setup_iris(env_id, device)
-    diamond_wm_env, diamond_rew_end, diamond_actor_critic = setup_diamond(env_id, num_actions=light_zero_cfg.policy.model.action_space_size, device=device)
-
-    print("Starting the envs")
-    observations, actions, lost_lives_timesteps = run_gym_env(env, max_steps, iris_agent, device)
+    observations, actions, lost_lives_timesteps = run_gym_env(env, max_steps, original_iris_agent, device)
     print(lost_lives_timesteps)
 
-    decode_encode_iris(observations, actions, iris_wm_env, start_step, device)
+    iris_agent, iris_wm_env = setup_iris(env_id, encoder_type, device)
+    diamond_wm_env, diamond_rew_end, diamond_actor_critic = setup_diamond(env_id, num_actions=light_zero_cfg.policy.model.action_space_size, device=device)
+    print("Starting the envs")
+    #decode_encode_iris(observations, actions, iris_wm_env, start_step, device)
     #burn_in_iris_test(observations, actions, iris_wm_env, start_step, device)
     print("Done")
-    # run_iris_embedding_agent(observations, actions, iris_wm_env, start_step, device)
+    run_iris_embedding_agent(observations, actions, iris_wm_env, start_step, device)
 
     # histogram = tokens_saturation(observations, iris_wm_env, device)
     # burn_in_iris_test(observations, actions, iris_wm_env, start_step, device)

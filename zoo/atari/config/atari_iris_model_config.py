@@ -1,10 +1,25 @@
 from easydict import EasyDict
 from zoo.atari.config.atari_env_action_space_map import atari_env_action_space_map
 
-def get_model_path_from_env_id(env_id: str):
-    model_ckpt_name = env_id.split("NoFrameskip")[0]
-    model_path = f"checkpoints/pretrained_iris/pretrained_models/{model_ckpt_name}.pt"
-    return model_path
+
+
+
+def get_model_path_from_env_id(env_id: str, encoder_type: str):
+    env_ckpt_name = env_id.split("NoFrameskip")[0].lower()
+
+    if encoder_type == "original":
+        model_name = f"{env_ckpt_name}_original.pt"
+    elif encoder_type == "2048vocab":
+        model_name = f"{env_ckpt_name}_2048vocab.pt"
+    elif encoder_type == "64patches":
+        model_name = f"{env_ckpt_name}_64patches.pt"
+    else:
+        AssertionError("Invalid encoder type")
+
+    model_path = f"checkpoints/iris_retrain/{model_name}"
+
+    model_cfg = f"../../iris/config/{model_name.split('_')[1][:-3]}"
+    return model_path, model_cfg
 
 def get_configs(env_id: str):
 
@@ -18,7 +33,7 @@ def get_configs(env_id: str):
     collector_env_num = 8
     n_episode = 8
     evaluator_env_num = 1
-    num_simulations = 200
+    num_simulations = 0
     update_per_collect = None
     replay_ratio = 0.25
     batch_size = 256

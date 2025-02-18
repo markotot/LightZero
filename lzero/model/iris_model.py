@@ -47,12 +47,12 @@ class IrisModel(nn.Module):
         self.model_path = kwargs.get('model_path', None)
         self.env_id = kwargs.get('env_id', None)
 
-        self.agent, self.world_model_env = self.load_agent()
+        self.config_path = kwargs.get('model_cfg', None)
+        self.agent, self.world_model_env = self.load_agent(config_path=self.config_path)
         self.true_model_hidden_state = (None, None)
 
-    def load_agent(self):
-        path = "../../iris/config/"
-        with initialize(config_path=path, job_name="test_app"):
+    def load_agent(self, config_path):
+        with initialize(config_path=config_path, job_name="test_app"):
             cfg = compose(config_name="trainer")
 
         device = torch.device(cfg.common.device)
