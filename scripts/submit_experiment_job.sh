@@ -4,6 +4,7 @@
 #$ -pe smp 8
 #$ -l gpu=1
 #$ -l gpu_type=ampere
+#$ -l rocky
 #$ -cwd
 #$ -j y
 #$ -o job_results
